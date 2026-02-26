@@ -72,6 +72,65 @@ The backend utilizes an isolated agent structure to prevent processing bottlenec
 *   **Risk Fusion Agent:** The core orchestration brain. It merges spatial risk from routes, vision penalties, and behavior deviations into a finalized scoring metric.
 *   **Decision / Explainability Agent:** Translates the raw numeric penalty vectors from the Fusion agent into textual actions broadcasted to the frontend or notification APIs.
 
+## System Workflows & Pipelines
+
+### 1. Vision AI & GPS Triage Event Loop
+
+This sequence illustrates the lifecycle of a physical threat detected by the onboard hardware during an active trip.
+
+```mermaid
+sequenceDiagram
+    participant Camera as Vehicle Camera
+    participant GPS as IoT Telemetry
+    participant Agent as Vision / Behavior Agents
+    participant Fusion as Risk Fusion Core
+    participant XAI as Explainability LLM
+    participant UI as Command Center UI
+
+    Camera->>Agent: Stream Live Feed (RTSP/WebRTC)
+    GPS->>Agent: Broadcast Telemetry (Speed/Loc)
+    loop Every 5 Seconds
+        Agent->>Agent: YOLOv8 Inference on Frame
+        Agent->>Agent: Spatial Anomaly Check
+    end
+    Note over Agent: Intruder Detected!
+    Agent->>Fusion: Push Penalty Score (+45 Danger)
+    Fusion->>Fusion: Aggregate Route & Driver Baseline
+    Fusion->>XAI: Final Score (Critical) + Raw Context
+    XAI->>XAI: Generate Human-Readable Protocol
+    XAI->>UI: Dispatch Socket Event
+    UI->>UI: Trigger Visual Alarms & Pulse Styling
+```
+
+### 2. Bayesian Pre-Journey Route Analysis
+
+This flowchart maps how logistics coordinators utilize the predictive engine before a truck ever leaves the facility.
+
+```mermaid
+graph TD
+    Start([Initialize Route]) --> Input[Input Cargo Value & Driver Data]
+    Input --> Geo[Request Geospatial Polygons]
+    Geo --> Hist{Query Historical DB}
+    
+    Hist -->|No Past Incidents| M1(Base Risk: Low)
+    Hist -->|Past Incidents Found| M2(Elevate Base Risk)
+    
+    M1 --> Bayesian[Bayesian Weighting Node]
+    M2 --> Bayesian
+    
+    Bayesian -->|High Value Cargo| B1[+30% Risk Factor]
+    Bayesian -->|Rookie Driver| B2[+15% Risk Factor]
+    
+    B1 --> FusionPoint{Risk Fusion Engine}
+    B2 --> FusionPoint
+    
+    FusionPoint -->|Score > 75| Alert[Flag Route for Escort]
+    FusionPoint -->|Score < 75| Approve[Clear for Departure]
+    
+    Alert --> End([Update UI State])
+    Approve --> End
+```
+
 ## Setup & Installation
 
 ### 1. Backend Integration (Django + Python AI Core)
