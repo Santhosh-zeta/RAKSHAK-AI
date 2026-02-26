@@ -258,7 +258,7 @@ def run_live_simulation():
         print(f"  {DIM}Risk:{RST} {rc}{composite:.2f} [{risk_level}]{RST}")
         if dec_res.get("alert_id"):
              print(f"  {Y}⚠ Alert Generated! Rule Fired: {dec_res.get('rule_fired')}{RST}")
-             
+             Risk:
         time.sleep(2)  # Tick every 2 seconds so UI updates smoothly
 
 if __name__ == "__main__":
