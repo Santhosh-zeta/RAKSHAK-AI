@@ -342,4 +342,4 @@ class PerceptionAgent:
 if __name__ == "__main__":
     agent = PerceptionAgent()
     asyncio.run(agent.start())
-    asyncio.run(agent.run_from_file("test_video.mp4")
+    asyncio.run(agent.run_from_file("test_video.mp4"))
