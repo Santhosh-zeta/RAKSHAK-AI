@@ -9,6 +9,10 @@ import {
     CheckCircle2, TrendingUp, ChevronRight, Printer
 } from 'lucide-react';
 import { ROUTE_OPTIONS, CARGO_TYPE_OPTIONS, computeRiskReport, RiskReportResult } from '@/services/riskUtils'; // J2: shared constants
+import AuthGuard from '@/components/AuthGuard';
+import dynamic from 'next/dynamic';
+
+const GoogleMapComponent = dynamic(() => import('@/components/GoogleMapComponent'), { ssr: false });
 
 // Animation Variants
 const staggerContainer = {
@@ -351,6 +355,22 @@ export default function JourneyReport() {
                                                 {z}
                                             </div>
                                         ))}
+                                    </motion.div>
+                                )}
+
+                                {/* Map Visualization */}
+                                {report.routePath && report.routePath.length > 0 && (
+                                    <motion.div variants={fadeUp} className={styles.mapSection} style={{ marginTop: '1.5rem', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', backgroundColor: '#1e293b' }}>
+                                        <div style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#f8fafc' }}>
+                                            <MapPin size={16} style={{ color: '#3b82f6' }} /> Route Map
+                                        </div>
+                                        <GoogleMapComponent
+                                            height="320px"
+                                            center={report.routePath[Math.floor(report.routePath.length / 2)]}
+                                            zoom={5}
+                                            polyline={report.routePath}
+                                            dangerZones={report.dangerZoneMarks}
+                                        />
                                     </motion.div>
                                 )}
 

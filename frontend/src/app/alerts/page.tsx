@@ -4,7 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
-import { getAlerts, EnhancedAlert, SEED_FLEET } from '@/services/apiClient';
+import { getAlerts, resolveAlert, EnhancedAlert, SEED_FLEET } from '@/services/apiClient';
+import AuthGuard from '@/components/AuthGuard';
+import dynamic from 'next/dynamic';
+
+const GoogleMapComponent = dynamic(() => import('@/components/GoogleMapComponent'), { ssr: false });
 import {
     AlertCircle, Filter, CheckCircle2, Search, ChevronDown, ChevronUp,
     MapPin, Navigation, Brain, Clock, ShieldAlert, Bell, Download,
@@ -47,6 +51,7 @@ export default function Alerts() {
     const [sortKey, setSortKey] = useState<SortKey>('severity'); // A6: sort
     const [sortAsc, setSortAsc] = useState(false);
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+    const [mapModalAlert, setMapModalAlert] = useState<EnhancedAlert | null>(null);
 
     // A3: auto-refresh every 30s
     const fetchAlerts = useCallback(async () => {
@@ -99,8 +104,13 @@ export default function Alerts() {
     const toggleExpand = (id: string) => setExpandedAlertId(expandedAlertId === id ? null : id);
 
     // Resolve
-    const resolve = (id: string, e: React.MouseEvent) => {
+    const resolve = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
+        try {
+            await resolveAlert(id);
+        } catch (err) {
+            console.error('Failed to resolve alert via API:', err);
+        }
         setResolvedIds(prev => new Set([...prev, id]));
         setExpandedAlertId(null);
     };
@@ -406,10 +416,10 @@ export default function Alerts() {
                                                             </div>
 
                                                             <div className={styles.expandedActions}>
-                                                                {/* A1: "View on Map" now navigates to dashboard */}
+                                                                {/* A1: "View on Map" now opens Modal */}
                                                                 <button
                                                                     className={styles.actionBtnSecondary}
-                                                                    onClick={(e) => { e.stopPropagation(); router.push('/dashboard'); }}
+                                                                    onClick={(e) => { e.stopPropagation(); setMapModalAlert(alert); }}
                                                                     aria-label="View vehicle on map"
                                                                 >
                                                                     View on Map
@@ -437,6 +447,63 @@ export default function Alerts() {
                     )}
                 </div>
             </div>
+
+            {/* Google Maps Modal Overlay */}
+            <AnimatePresence>
+                {mapModalAlert && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={() => setMapModalAlert(null)}
+                        style={{
+                            position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15,23,42,0.85)',
+                            backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+                        }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                                background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '16px', width: '100%', maxWidth: '800px', overflow: 'hidden',
+                                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, display: 'flex', gap: 8, alignItems: 'center', color: '#f1f5f9' }}>
+                                    <MapPin size={18} style={{ color: '#3b82f6' }} /> Live Location: {mapModalAlert.truckId}
+                                </h3>
+                                <button
+                                    onClick={() => setMapModalAlert(null)}
+                                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4, fontWeight: 700 }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <div style={{ padding: '8px' }}>
+                                {getLocation(mapModalAlert.truckId) ? (
+                                    <GoogleMapComponent
+                                        height="60vh"
+                                        center={getLocation(mapModalAlert.truckId)!}
+                                        zoom={14}
+                                        markers={[{
+                                            lat: getLocation(mapModalAlert.truckId)!.lat,
+                                            lng: getLocation(mapModalAlert.truckId)!.lng,
+                                            title: mapModalAlert.truckId || 'Vehicle',
+                                            riskLevel: mapModalAlert.level,
+                                            riskScore: mapModalAlert.riskScore,
+                                        }]}
+                                    />
+                                ) : (
+                                    <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#64748b' }}>
+                                        <MapPin size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
+                                        <p>GPS telemetry unavailable for this asset.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

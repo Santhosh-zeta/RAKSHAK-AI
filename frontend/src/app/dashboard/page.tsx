@@ -8,18 +8,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
 import { getFleetData, getAlerts, triggerSimulation, FleetVehicle, Alert } from '@/services/apiClient';
 import { useToast } from '@/components/Toast';
+import AuthGuard from '@/components/AuthGuard';
 import {
     MapPin, Activity, Truck, Banknote, ShieldAlert, BarChart3,
     Crosshair, Terminal, ArrowUpRight, Signal, Zap, CheckCircle2, ExternalLink
 } from 'lucide-react';
 
-// Dynamically import MapView (SVG-based — no external dep)
-const MapView = dynamic(() => import('@/components/MapView'), {
+// Dynamically import GoogleMapComponent because it needs the window object
+const GoogleMapComponent = dynamic(() => import('@/components/GoogleMapComponent'), {
     ssr: false,
     loading: () => (
         <div className={styles.mapLoading}>
             <div className={styles.radarLoader}></div>
-            <p>Initializing Map Engine...</p>
+            <p>Initializing Google Maps...</p>
         </div>
     )
 });
@@ -152,265 +153,277 @@ export default function Dashboard() {
         return true;
     });
 
+    const mapMarkers = filteredFleet.map(v => ({
+        lat: v.location.lat,
+        lng: v.location.lng,
+        title: v.info.id,
+        truckId: v.info.id,
+        riskLevel: v.risk.level,
+        riskScore: v.risk.score,
+        status: v.status,
+        route: v.info.route
+    }));
+
     // D10: Cycle through all fleet in terminal log
     const terminalVehicles = fleet.length > 0
         ? [fleet[terminalTick % fleet.length], fleet[(terminalTick + 1) % fleet.length], fleet[(terminalTick + 2) % fleet.length]]
         : [];
 
     return (
-        <motion.div
-            className={styles.dashboardContainer}
-            variants={staggerContainer}
-            initial="hidden"
-            animate="show"
-        >
-            {ToastElement /* G2 */}
+        <AuthGuard>
+            <motion.div
+                className={styles.dashboardContainer}
+                variants={staggerContainer}
+                initial="hidden"
+                animate="show"
+            >
+                {ToastElement /* G2 */}
 
-            <motion.div variants={fadeUp} className={styles.topControls}>
-                <h1 className={styles.pageTitle}>Fleet Command <span>/ Live Intel</span></h1>
-                <div className={styles.filterGroup}>
-                    {(['All', 'In Transit', 'High Risk'] as const).map(filter => (
-                        <button
-                            key={filter}
-                            onClick={() => setActiveFilter(filter)}
-                            className={`${styles.filterBtn} ${activeFilter === filter ? styles.activeFilter : ''}`}
-                            aria-label={`Filter: ${filter}`} // G10
-                        >
-                            {filter} {filter === 'High Risk' && highRiskCount > 0 && <span className={styles.filterBadge}>{highRiskCount}</span>}
-                        </button>
-                    ))}
-                </div>
-                <button
-                    onClick={handleDemo}
-                    disabled={demoStatus === 'running'}
-                    className={styles.demoBtn} // D2: moved to CSS class
-                    aria-label="Trigger demo theft scenario"  // G10
-                    data-status={demoStatus}
-                >
-                    {demoStatus === 'running' ? <Activity size={16} className={styles.spinIcon} /> : demoStatus === 'done' ? <CheckCircle2 size={16} /> : <Zap size={16} />}
-                    {demoStatus === 'running' ? 'Triggering...' : demoStatus === 'done' ? 'Scenario Active!' : '🚨 Trigger Demo'}
-                </button>
-            </motion.div>
-
-            {/* Stats Grid */}
-            <motion.section variants={fadeUp} className={styles.statsGrid}>
-                {/* Active Fleet */}
-                <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
-                    <div className={styles.statHeader}>
-                        <div className={styles.statIconWrapper}><Truck size={20} className={styles.iconAccent} /></div>
-                        <span className={styles.statLabel}>Active Consignments</span>
+                <motion.div variants={fadeUp} className={styles.topControls}>
+                    <h1 className={styles.pageTitle}>Fleet Command <span>/ Live Intel</span></h1>
+                    <div className={styles.filterGroup}>
+                        {(['All', 'In Transit', 'High Risk'] as const).map(filter => (
+                            <button
+                                key={filter}
+                                onClick={() => setActiveFilter(filter)}
+                                className={`${styles.filterBtn} ${activeFilter === filter ? styles.activeFilter : ''}`}
+                                aria-label={`Filter: ${filter}`} // G10
+                            >
+                                {filter} {filter === 'High Risk' && highRiskCount > 0 && <span className={styles.filterBadge}>{highRiskCount}</span>}
+                            </button>
+                        ))}
                     </div>
-                    <div className={styles.statBody}>
-                        <h2 className={styles.statValue}>{fleet.length}</h2>
-                        <div className={styles.statSparkline}><Activity size={32} className={styles.sparklineGood} /></div>
-                    </div>
-                    <div className={styles.statFooter}>
-                        <ArrowUpRight size={14} className={styles.iconGood} />
-                        <span>{fleet.filter(v => v.status === 'Alert').length} on alert, {fleet.filter(v => v.status === 'In Transit').length} in transit</span>
-                    </div>
+                    <button
+                        onClick={handleDemo}
+                        disabled={demoStatus === 'running'}
+                        className={styles.demoBtn} // D2: moved to CSS class
+                        aria-label="Trigger demo theft scenario"  // G10
+                        data-status={demoStatus}
+                    >
+                        {demoStatus === 'running' ? <Activity size={16} className={styles.spinIcon} /> : demoStatus === 'done' ? <CheckCircle2 size={16} /> : <Zap size={16} />}
+                        {demoStatus === 'running' ? 'Triggering...' : demoStatus === 'done' ? 'Scenario Active!' : '🚨 Trigger Demo'}
+                    </button>
                 </motion.div>
 
-                {/* Critical Threats */}
-                <motion.div whileHover={{ scale: 1.02 }} className={`${styles.statCard} ${highRiskCount > 0 ? styles.statCardWarning : ''}`}>
-                    <div className={styles.statHeader}>
-                        <div className={styles.statIconWrapperWarning}>
-                            <ShieldAlert size={20} className={highRiskCount > 0 ? styles.iconHigh : styles.iconSafe} />
+                {/* Stats Grid */}
+                <motion.section variants={fadeUp} className={styles.statsGrid}>
+                    {/* Active Fleet */}
+                    <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
+                        <div className={styles.statHeader}>
+                            <div className={styles.statIconWrapper}><Truck size={20} className={styles.iconAccent} /></div>
+                            <span className={styles.statLabel}>Active Consignments</span>
                         </div>
-                        <span className={styles.statLabel}>Critical Threats</span>
-                    </div>
-                    <div className={styles.statBody}>
-                        <h2 className={`${styles.statValue} ${highRiskCount > 0 ? styles.textHigh : styles.textSafe}`}>{highRiskCount}</h2>
-                        <div className={styles.flexStack}>
-                            {highRiskCount > 0 && <span className={styles.pulseTag}>ACTION REQUIRED</span>}
+                        <div className={styles.statBody}>
+                            <h2 className={styles.statValue}>{fleet.length}</h2>
+                            <div className={styles.statSparkline}><Activity size={32} className={styles.sparklineGood} /></div>
                         </div>
-                    </div>
-                    <div className={styles.statFooter}><span>Real-time AI behavioral analysis active</span></div>
-                </motion.div>
+                        <div className={styles.statFooter}>
+                            <ArrowUpRight size={14} className={styles.iconGood} />
+                            <span>{fleet.filter(v => v.status === 'Alert').length} on alert, {fleet.filter(v => v.status === 'In Transit').length} in transit</span>
+                        </div>
+                    </motion.div>
 
-                {/* Assets Monitored — D8: computed from real data */}
-                <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
-                    <div className={styles.statHeader}>
-                        <div className={styles.statIconWrapper}><Banknote size={20} className={styles.iconAccent} /></div>
-                        <span className={styles.statLabel}>Assets Monitored</span>
-                    </div>
-                    <div className={styles.statBody}>
-                        <h2 className={styles.statValue}>₹{(totalValue / 10000000).toFixed(2)}Cr</h2>
-                        <div className={styles.circularProgress}>
-                            <svg viewBox="0 0 36 36" className={styles.circularSvg}>
-                                <path className={styles.circleBg} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                <path className={styles.circleFill} strokeDasharray={`${operationalPct}, 100`}
-                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                            </svg>
-                            <span className={styles.circleText}>{operationalPct}%</span>
+                    {/* Critical Threats */}
+                    <motion.div whileHover={{ scale: 1.02 }} className={`${styles.statCard} ${highRiskCount > 0 ? styles.statCardWarning : ''}`}>
+                        <div className={styles.statHeader}>
+                            <div className={styles.statIconWrapperWarning}>
+                                <ShieldAlert size={20} className={highRiskCount > 0 ? styles.iconHigh : styles.iconSafe} />
+                            </div>
+                            <span className={styles.statLabel}>Critical Threats</span>
                         </div>
-                    </div>
-                    <div className={styles.statFooter}><span>{operationalPct}% fleet operational efficiency</span></div>
-                </motion.div>
-
-                {/* Fleet Avg Risk Gauge */}
-                <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
-                    <div className={styles.statHeader}>
-                        <div className={styles.statIconWrapper}><BarChart3 size={20} className={styles.iconAccent} /></div>
-                        <span className={styles.statLabel}>Fleet Avg Risk</span>
-                    </div>
-                    <div className={styles.statBody} style={{ justifyContent: 'center' }}>
-                        <div className={styles.riskGaugeWrap}>
-                            <svg viewBox="0 0 36 20" className={styles.riskGaugeSvg}>
-                                <path d="M3 18 A 15 15 0 0 1 33 18" fill="none" stroke="#e2e8f0" strokeWidth="3.5" strokeLinecap="round" />
-                                <path d="M3 18 A 15 15 0 0 1 33 18" fill="none" stroke={avgRiskColor} strokeWidth="3.5" strokeLinecap="round"
-                                    strokeDasharray={`${(avgRisk / 100) * 47.12} 47.12`} // R4: correct arc circumference
-                                    style={{ transition: 'stroke-dasharray 1.2s ease' }}
-                                />
-                            </svg>
-                            <div className={styles.riskGaugeLabel}>
-                                <span className={styles.riskGaugeValue} style={{ color: avgRiskColor }}>{avgRisk}</span>
-                                <span className={styles.riskGaugeSub}>/ 100</span>
+                        <div className={styles.statBody}>
+                            <h2 className={`${styles.statValue} ${highRiskCount > 0 ? styles.textHigh : styles.textSafe}`}>{highRiskCount}</h2>
+                            <div className={styles.flexStack}>
+                                {highRiskCount > 0 && <span className={styles.pulseTag}>ACTION REQUIRED</span>}
                             </div>
                         </div>
-                    </div>
-                    <div className={styles.statFooter}>
-                        <span style={{ color: avgRiskColor, fontWeight: 700 }}>
-                            {avgRisk >= 70 ? '🔴 HIGH THREAT' : avgRisk >= 45 ? '🟡 MODERATE RISK' : '🟢 LOW RISK'}
-                        </span>
-                    </div>
-                </motion.div>
-            </motion.section>
+                        <div className={styles.statFooter}><span>Real-time AI behavioral analysis active</span></div>
+                    </motion.div>
 
-            <motion.div variants={staggerContainer} className={styles.mainGrid}>
-                {/* Map — D12: taller via CSS */}
-                <motion.section variants={fadeUp} className={styles.mapSection}>
-                    <div className={styles.panelHeader}>
-                        <div className={styles.headerLeft}>
-                            <MapPin className={styles.iconAccent} />
-                            <h2>Global Tracking Matrix</h2>
+                    {/* Assets Monitored — D8: computed from real data */}
+                    <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
+                        <div className={styles.statHeader}>
+                            <div className={styles.statIconWrapper}><Banknote size={20} className={styles.iconAccent} /></div>
+                            <span className={styles.statLabel}>Assets Monitored</span>
                         </div>
-                        <div className={styles.statusBadge}>
-                            <Signal size={12} className={styles.iconBlink} /> Live Uplink
-                        </div>
-                    </div>
-                    <div className={styles.mapContainer}>
-                        <div className={styles.mapGlow}></div>
-                        <div className={styles.mapPlaceholder}>
-                            <ErrorBoundary fallback={<div className={styles.errorFallback}>Map failed to load.</div>}>
-                                <MapView fleet={fleet} />
-                            </ErrorBoundary>
-                        </div>
-                        {/* Terminal Overlay — D10: cycles through all fleet, shows GPS coords */}
-                        <div className={styles.mapOverlayTerminal}>
-                            <div className={styles.terminalHeader}>SYSTEM LOG</div>
-                            <div className={styles.terminalBody}>
-                                {terminalVehicles.map((f, i) => (
-                                    <div key={`${f.info.id}-${terminalTick}-${i}`} className={styles.terminalLine}>
-                                        <span className={styles.tTime}>{new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                                        <span className={styles.tSys}>[GPS]</span>
-                                        <span className={styles.tMsg}>{f.info.id} @ [{f.location.lat.toFixed(4)}°N, {f.location.lng.toFixed(4)}°E] — Risk: {f.risk.score}</span>
-                                    </div>
-                                ))}
-                                <div className={styles.terminalLine}><span className={styles.tBlink}>_</span></div>
+                        <div className={styles.statBody}>
+                            <h2 className={styles.statValue}>₹{(totalValue / 10000000).toFixed(2)}Cr</h2>
+                            <div className={styles.circularProgress}>
+                                <svg viewBox="0 0 36 36" className={styles.circularSvg}>
+                                    <path className={styles.circleBg} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path className={styles.circleFill} strokeDasharray={`${operationalPct}, 100`}
+                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                </svg>
+                                <span className={styles.circleText}>{operationalPct}%</span>
                             </div>
                         </div>
-                    </div>
+                        <div className={styles.statFooter}><span>{operationalPct}% fleet operational efficiency</span></div>
+                    </motion.div>
+
+                    {/* Fleet Avg Risk Gauge */}
+                    <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
+                        <div className={styles.statHeader}>
+                            <div className={styles.statIconWrapper}><BarChart3 size={20} className={styles.iconAccent} /></div>
+                            <span className={styles.statLabel}>Fleet Avg Risk</span>
+                        </div>
+                        <div className={styles.statBody} style={{ justifyContent: 'center' }}>
+                            <div className={styles.riskGaugeWrap}>
+                                <svg viewBox="0 0 36 20" className={styles.riskGaugeSvg}>
+                                    <path d="M3 18 A 15 15 0 0 1 33 18" fill="none" stroke="#e2e8f0" strokeWidth="3.5" strokeLinecap="round" />
+                                    <path d="M3 18 A 15 15 0 0 1 33 18" fill="none" stroke={avgRiskColor} strokeWidth="3.5" strokeLinecap="round"
+                                        strokeDasharray={`${(avgRisk / 100) * 47.12} 47.12`} // R4: correct arc circumference
+                                        style={{ transition: 'stroke-dasharray 1.2s ease' }}
+                                    />
+                                </svg>
+                                <div className={styles.riskGaugeLabel}>
+                                    <span className={styles.riskGaugeValue} style={{ color: avgRiskColor }}>{avgRisk}</span>
+                                    <span className={styles.riskGaugeSub}>/ 100</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className={styles.statFooter}>
+                            <span style={{ color: avgRiskColor, fontWeight: 700 }}>
+                                {avgRisk >= 70 ? '🔴 HIGH THREAT' : avgRisk >= 45 ? '🟡 MODERATE RISK' : '🟢 LOW RISK'}
+                            </span>
+                        </div>
+                    </motion.div>
                 </motion.section>
 
-                {/* Alerts Feed — D3, D4, D5: clickable, color-coded, type badge */}
-                <motion.section variants={fadeUp} className={styles.alertsPanel}>
-                    <div className={styles.panelHeader}>
-                        <div className={styles.headerLeft}>
-                            <Terminal className={styles.iconHigh} />
-                            <h2>Threat Feed</h2>
+                <motion.div variants={staggerContainer} className={styles.mainGrid}>
+                    {/* Map — D12: taller via CSS */}
+                    <motion.section variants={fadeUp} className={styles.mapSection}>
+                        <div className={styles.panelHeader}>
+                            <div className={styles.headerLeft}>
+                                <MapPin className={styles.iconAccent} />
+                                <h2>Global Tracking Matrix</h2>
+                            </div>
+                            <div className={styles.statusBadge}>
+                                <Signal size={12} className={styles.iconBlink} /> Live Uplink
+                            </div>
                         </div>
-                        <Link href="/alerts" className={styles.viewAllLink} aria-label="View all alerts">
-                            View All <ExternalLink size={12} />
-                        </Link>
-                    </div>
-                    <div className={styles.alertsList}>
-                        {alerts.length === 0 ? (
-                            <div className={styles.emptyAlerts}>No active threats.</div>
-                        ) : (
-                            alerts.slice(0, 8).map(alert => (
-                                <Link key={alert.id} href="/alerts" className={styles.alertCard} // D3: clickable
-                                    style={{ borderLeft: `3px solid ${SEVERITY_BORDER[alert.level] || '#94a3b8'}` }} // D4
-                                >
-                                    <div className={styles.alertContent}>
-                                        <div className={styles.alertHeaderRow}>
-                                            <span className={styles.alertTarget}>{alert.truckId}</span>
-                                            {/* D5: type badge */}
-                                            {alert.type && (
-                                                <span className={styles.alertTypePill} data-type={alert.type}>{alert.type}</span>
-                                            )}
-                                            <span className={styles.alertTimeLabel}>{alert.time}</span>
+                        <div className={styles.mapContainer}>
+                            <div className={styles.mapPlaceholder}>
+                                <ErrorBoundary fallback={<div className={styles.errorFallback}>Map failed to load.</div>}>
+                                    <GoogleMapComponent markers={mapMarkers} height="100%" />
+                                </ErrorBoundary>
+                            </div>
+                            {/* Terminal Overlay — D10: cycles through all fleet, shows GPS coords */}
+                            <div className={styles.mapOverlayTerminal}>
+                                <div className={styles.terminalHeader}>SYSTEM LOG</div>
+                                <div className={styles.terminalBody}>
+                                    {terminalVehicles.map((f, i) => (
+                                        <div key={`${f.info.id}-${terminalTick}-${i}`} className={styles.terminalLine}>
+                                            <span className={styles.tTime}>{new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                                            <span className={styles.tSys}>[GPS]</span>
+                                            <span className={styles.tMsg}>{f.info.id} @ [{f.location.lat.toFixed(4)}°N, {f.location.lng.toFixed(4)}°E] — Risk: {f.risk.score}</span>
                                         </div>
-                                        <p className={styles.alertMessageText}>{alert.message}</p>
-                                    </div>
-                                </Link>
-                            ))
-                        )}
+                                    ))}
+                                    <div className={styles.terminalLine}><span className={styles.tBlink}>_</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.section>
+
+                    {/* Alerts Feed — D3, D4, D5: clickable, color-coded, type badge */}
+                    <motion.section variants={fadeUp} className={styles.alertsPanel}>
+                        <div className={styles.panelHeader}>
+                            <div className={styles.headerLeft}>
+                                <Terminal className={styles.iconHigh} />
+                                <h2>Threat Feed</h2>
+                            </div>
+                            <Link href="/alerts" className={styles.viewAllLink} aria-label="View all alerts">
+                                View All <ExternalLink size={12} />
+                            </Link>
+                        </div>
+                        <div className={styles.alertsList}>
+                            {alerts.length === 0 ? (
+                                <div className={styles.emptyAlerts}>No active threats.</div>
+                            ) : (
+                                alerts.slice(0, 8).map(alert => (
+                                    <Link key={alert.id} href="/alerts" className={styles.alertCard} // D3: clickable
+                                        style={{ borderLeft: `3px solid ${SEVERITY_BORDER[alert.level] || '#94a3b8'}` }} // D4
+                                    >
+                                        <div className={styles.alertContent}>
+                                            <div className={styles.alertHeaderRow}>
+                                                <span className={styles.alertTarget}>{alert.truckId}</span>
+                                                {/* D5: type badge */}
+                                                {alert.type && (
+                                                    <span className={styles.alertTypePill} data-type={alert.type}>{alert.type}</span>
+                                                )}
+                                                <span className={styles.alertTimeLabel}>{alert.time}</span>
+                                            </div>
+                                            <p className={styles.alertMessageText}>{alert.message}</p>
+                                        </div>
+                                    </Link>
+                                ))
+                            )}
+                        </div>
+                    </motion.section>
+                </motion.div>
+
+                {/* Fleet Telemetry Table — D1, D6, D7 */}
+                <motion.section variants={fadeUp} className={styles.dataGridSection}>
+                    <div className={styles.panelHeader}>
+                        <div className={styles.headerLeft}>
+                            <BarChart3 className={styles.iconAccent} />
+                            <h2>Deep Fleet Telemetry</h2>
+                        </div>
+                        <span className={styles.tableSubline}>{filteredFleet.length} consignments shown</span>
+                    </div>
+                    <div className={styles.tableContainer}>
+                        <table className={styles.dataTable}>
+                            <thead>
+                                <tr>
+                                    <th>UNIT ID</th>
+                                    <th>STATUS</th>
+                                    <th>ROUTE VECTOR</th>
+                                    <th>CARGO YIELD</th>
+                                    <th>AI RISK SCORE</th>
+                                    <th>LAST PING</th>
+                                    <th>ACTION</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredFleet.map((vehicle, i) => {
+                                    // D1: Real-ish timestamps based on index offset
+                                    const pingTime = new Date(Date.now() - i * 47000);
+                                    const pingLabel = i === 0 ? 'Just now' : `${Math.round(i * 47 / 60)}m ago`;
+                                    const statusStyle = STATUS_STYLE[vehicle.status] || { color: '#475569', bg: 'rgba(71,85,105,0.08)' };
+                                    return (
+                                        <tr key={vehicle.info.id} className={styles.dataRow}>
+                                            <td className={styles.colId}>
+                                                <Crosshair size={14} className={styles.iconMuted} />
+                                                {vehicle.info.id}
+                                            </td>
+                                            <td>
+                                                {/* D7: color-coded status badge */}
+                                                <span className={styles.gridStatus} style={{ color: statusStyle.color, background: statusStyle.bg, border: `1px solid ${statusStyle.color}30` }}>
+                                                    {vehicle.status === 'Alert' && '⚠ '}{vehicle.status}
+                                                </span>
+                                            </td>
+                                            <td className={styles.colRoute}>{vehicle.info.route}</td>
+                                            <td className={styles.colValue}>₹{(vehicle.info.value / 100000).toFixed(1)}L</td>
+                                            <td>
+                                                <div className={styles.riskBarContainer}>
+                                                    <div className={`${styles.riskBarFill} ${styles[`riskBg${vehicle.risk.level}`]}`}
+                                                        style={{ width: `${vehicle.risk.score}%` }} />
+                                                    <span className={styles.riskBarText}>{vehicle.risk.score}/100</span>
+                                                </div>
+                                            </td>
+                                            <td className={styles.colPing}>{pingLabel}</td>
+                                            <td>
+                                                <Link href="/alerts" className={styles.viewDetailsBtn} aria-label={`View details for ${vehicle.info.id}`}>
+                                                    Details →
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 </motion.section>
             </motion.div>
-
-            {/* Fleet Telemetry Table — D1, D6, D7 */}
-            <motion.section variants={fadeUp} className={styles.dataGridSection}>
-                <div className={styles.panelHeader}>
-                    <div className={styles.headerLeft}>
-                        <BarChart3 className={styles.iconAccent} />
-                        <h2>Deep Fleet Telemetry</h2>
-                    </div>
-                    <span className={styles.tableSubline}>{filteredFleet.length} consignments shown</span>
-                </div>
-                <div className={styles.tableContainer}>
-                    <table className={styles.dataTable}>
-                        <thead>
-                            <tr>
-                                <th>UNIT ID</th>
-                                <th>STATUS</th>
-                                <th>ROUTE VECTOR</th>
-                                <th>CARGO YIELD</th>
-                                <th>AI RISK SCORE</th>
-                                <th>LAST PING</th>
-                                <th>ACTION</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredFleet.map((vehicle, i) => {
-                                // D1: Real-ish timestamps based on index offset
-                                const pingTime = new Date(Date.now() - i * 47000);
-                                const pingLabel = i === 0 ? 'Just now' : `${Math.round(i * 47 / 60)}m ago`;
-                                const statusStyle = STATUS_STYLE[vehicle.status] || { color: '#475569', bg: 'rgba(71,85,105,0.08)' };
-                                return (
-                                    <tr key={vehicle.info.id} className={styles.dataRow}>
-                                        <td className={styles.colId}>
-                                            <Crosshair size={14} className={styles.iconMuted} />
-                                            {vehicle.info.id}
-                                        </td>
-                                        <td>
-                                            {/* D7: color-coded status badge */}
-                                            <span className={styles.gridStatus} style={{ color: statusStyle.color, background: statusStyle.bg, border: `1px solid ${statusStyle.color}30` }}>
-                                                {vehicle.status === 'Alert' && '⚠ '}{vehicle.status}
-                                            </span>
-                                        </td>
-                                        <td className={styles.colRoute}>{vehicle.info.route}</td>
-                                        <td className={styles.colValue}>₹{(vehicle.info.value / 100000).toFixed(1)}L</td>
-                                        <td>
-                                            <div className={styles.riskBarContainer}>
-                                                <div className={`${styles.riskBarFill} ${styles[`riskBg${vehicle.risk.level}`]}`}
-                                                    style={{ width: `${vehicle.risk.score}%` }} />
-                                                <span className={styles.riskBarText}>{vehicle.risk.score}/100</span>
-                                            </div>
-                                        </td>
-                                        <td className={styles.colPing}>{pingLabel}</td>
-                                        <td>
-                                            <Link href="/alerts" className={styles.viewDetailsBtn} aria-label={`View details for ${vehicle.info.id}`}>
-                                                Details →
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </motion.section>
-        </motion.div>
+        </AuthGuard>
     );
 }
