@@ -86,7 +86,7 @@ export default function Dashboard() {
         const startPolling = () => {
             interval = setInterval(() => {
                 if (!document.hidden) fetchData();
-            }, 30000); // D11: increased to 30s
+            }, 2000); // D11: decreased to 2s for live sim
         };
 
         const handleVisibilityChange = () => {

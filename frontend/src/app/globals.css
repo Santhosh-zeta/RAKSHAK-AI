@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   /* Logo colors */
   --color-logo-blue: #0284c7;
@@ -33,12 +35,6 @@
   --glow-accent: 0 4px 15px rgba(14, 165, 233, 0.25);
   --glow-risk-high: 0 4px 15px rgba(239, 68, 68, 0.3);
   --glow-risk-low: 0 4px 15px rgba(16, 185, 129, 0.2);
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 body {

@@ -75,20 +75,37 @@ export default function FleetPage() {
         }
     };
 
-    useEffect(() => { fetchAll(); }, [fetchAll]);
+    useEffect(() => {
+        fetchAll();
+        let interval: ReturnType<typeof setInterval>;
+        const startPolling = () => {
+            interval = setInterval(() => {
+                if (!document.hidden) fetchAll(true);
+            }, 2000);
+        };
+        const handleVisibilityChange = () => {
+            if (!document.hidden) fetchAll(true);
+        };
+        startPolling();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [fetchAll]);
 
     const filteredTrucks = trucks.filter(t =>
-        t.license_plate?.toLowerCase().includes(search.toLowerCase()) ||
-        t.driver_name.toLowerCase().includes(search.toLowerCase()) ||
-        t.cargo_type.toLowerCase().includes(search.toLowerCase())
+        (t.license_plate || '').toLowerCase().includes(search.toLowerCase()) ||
+        (t.driver_name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (t.cargo_type || '').toLowerCase().includes(search.toLowerCase())
     );
 
     const tripStatuses = ['All', ...Array.from(new Set(trips.map(t => t.status)))];
     const filteredTrips = trips.filter(t => {
-        const matchSearch = t.truck.license_plate?.toLowerCase().includes(search.toLowerCase()) ||
-            t.truck.driver_name.toLowerCase().includes(search.toLowerCase()) ||
-            t.start_location_name.toLowerCase().includes(search.toLowerCase()) ||
-            t.destination_name.toLowerCase().includes(search.toLowerCase());
+        const matchSearch = (t.truck?.license_plate || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.truck?.driver_name || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.start_location_name || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.destination_name || '').toLowerCase().includes(search.toLowerCase());
         const matchStatus = statusFilter === 'All' || t.status === statusFilter;
         return matchSearch && matchStatus;
     });

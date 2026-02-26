@@ -60,6 +60,10 @@ export default function Navbar() {
         return role ?? '';
     };
 
+    if (isLoginPage) {
+        return null;
+    }
+
     return (
         <nav className={styles.navbar}>
             {/* Logo */}
