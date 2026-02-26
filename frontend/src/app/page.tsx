@@ -28,8 +28,8 @@ export default function Home() {
               <Link href="/dashboard" className={styles.primaryBtn}>
                 Launch Command Center <ArrowRight size={18} />
               </Link>
-              <Link href="/live-monitoring" className={styles.secondaryBtn}>
-                Watch Vision Demo
+              <Link href="/dashboard" className={styles.secondaryBtn}>
+                Watch Live Dashboard
               </Link>
             </div>
 
@@ -66,16 +66,16 @@ export default function Home() {
               <div className={styles.floatingCard} style={{ top: '15%', left: '-12%', animationDelay: '0s' }}>
                 <ShieldCheck className={styles.floatIconSafe} />
                 <div className={styles.floatText}>
-                  <strong>TR-8902 Secured</strong>
-                  <span>Route deviation: None</span>
+                  <strong>TR-102 Secured</strong>
+                  <span>Electronics · Mumbai route</span>
                 </div>
               </div>
 
               <div className={styles.floatingCard} style={{ bottom: '25%', right: '-8%', animationDelay: '2s' }}>
                 <Activity className={styles.floatIconAccent} />
                 <div className={styles.floatText}>
-                  <strong>Live Risk Engine</strong>
-                  <span>Analyzing 124 parameters</span>
+                  <strong>TR-1044 Alert</strong>
+                  <span>Risk score: 88 · Medical gear</span>
                 </div>
               </div>
 
@@ -93,7 +93,7 @@ export default function Home() {
         <div className={styles.tickerTrack}>
           <span>TensorFlow</span> • <span>PyTorch</span> • <span>YOLOv8 Object Detection</span> •
           <span>DeepSORT Tracking</span> • <span>Isolation Forests</span> • <span>Django REST</span> •
-          <span>Next.js</span> • <span>Leaflet Geospatial</span> • <span>Supabase</span>
+          <span>Next.js</span> • <span>SVG Map Engine</span> • <span>Supabase</span>
         </div>
       </div>
 

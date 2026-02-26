@@ -1,11 +1,13 @@
+/* Premium Light Command Center Container */
 .dashboardContainer {
     display: flex;
     flex-direction: column;
-    padding: 2rem;
-    gap: 2rem;
-    max-width: 1600px;
+    padding: 1.5rem;
+    gap: 1.5rem;
+    max-width: 1800px;
     margin: 0 auto;
     width: 100%;
+    min-height: 100vh;
 }
 
 /* Loading State */
@@ -69,10 +71,29 @@
     animation: scanLoad 2s ease-in-out infinite alternate;
 }
 
-@keyframes spin { 100% { transform: rotate(360deg); } }
-@keyframes spinReverse { 100% { transform: rotate(-360deg); } }
-@keyframes pulse { 50% { opacity: 0.5; } }
-@keyframes scanLoad { 100% { left: 70%; } }
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spinReverse {
+    100% {
+        transform: rotate(-360deg);
+    }
+}
+
+@keyframes pulse {
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes scanLoad {
+    100% {
+        left: 70%;
+    }
+}
 
 /* Top Controls */
 .topControls {
@@ -126,7 +147,7 @@
 .activeFilter {
     background: var(--color-bg-hover);
     color: var(--color-text-main);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .filterBadge {
@@ -141,15 +162,15 @@
 /* Stats Grid */
 .statsGrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
 }
 
 .statCard {
     background: linear-gradient(180deg, var(--color-bg-card) 0%, rgba(22, 30, 49, 0.4) 100%);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 1.5rem;
+    border-radius: 16px;
+    padding: 2rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -165,10 +186,11 @@
     left: 0;
     width: 100%;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
 }
 
 .statCardWarning {
+    background: linear-gradient(145deg, rgba(254, 242, 242, 0.9) 0%, rgba(255, 255, 255, 0.95) 100%);
     border-color: rgba(239, 68, 68, 0.3);
     background: linear-gradient(180deg, rgba(239, 68, 68, 0.05) 0%, rgba(22, 30, 49, 0.4) 100%);
 }
@@ -202,7 +224,7 @@
 }
 
 .statLabel {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--color-text-muted);
     font-weight: 600;
     text-transform: uppercase;
@@ -223,8 +245,13 @@
     letter-spacing: -1px;
 }
 
-.textHigh { color: var(--color-risk-high); }
-.textSafe { color: var(--color-risk-low); }
+.textHigh {
+    color: var(--color-risk-high);
+}
+
+.textSafe {
+    color: var(--color-risk-low);
+}
 
 .statSparkline {
     opacity: 0.2;
@@ -253,8 +280,15 @@
 }
 
 @keyframes flashRisk {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .statFooter {
@@ -263,7 +297,7 @@
     gap: 0.5rem;
     font-size: 0.75rem;
     color: var(--color-text-muted);
-    border-top: 1px solid rgba(255,255,255,0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     padding-top: 0.75rem;
     margin-top: 0.5rem;
 }
@@ -274,16 +308,19 @@
     width: 50px;
     height: 50px;
 }
+
 .circularSvg {
     transform: rotate(-90deg);
     width: 100%;
     height: 100%;
 }
+
 .circleBg {
     fill: none;
     stroke: var(--color-border);
     stroke-width: 3;
 }
+
 .circleFill {
     fill: none;
     stroke: var(--color-logo-blue);
@@ -291,6 +328,7 @@
     stroke-linecap: round;
     animation: fillCirc 1.5s ease-out forwards;
 }
+
 .circleText {
     position: absolute;
     inset: 0;
@@ -301,7 +339,12 @@
     font-weight: 700;
     color: var(--color-text-main);
 }
-@keyframes fillCirc { from { stroke-dasharray: 0, 100; } }
+
+@keyframes fillCirc {
+    from {
+        stroke-dasharray: 0, 100;
+    }
+}
 
 /* Main Map Grid */
 .mainGrid {
@@ -317,7 +360,7 @@
     align-items: center;
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .headerLeft {
@@ -343,6 +386,27 @@
     flex-direction: column;
 }
 
+.tSys {
+    color: var(--color-risk-low);
+    font-weight: 700;
+}
+
+.tMsg {
+    color: var(--color-text-main);
+}
+
+.tBlink {
+    color: var(--color-accent);
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+/* Live Uplink Status */
 .statusBadge {
     display: flex;
     align-items: center;
@@ -353,10 +417,16 @@
     text-transform: uppercase;
     letter-spacing: 1px;
 }
+
 .iconBlink {
     animation: blinker 1s linear infinite;
 }
-@keyframes blinker { 50% { opacity: 0; } }
+
+@keyframes blinker {
+    50% {
+        opacity: 0;
+    }
+}
 
 .mapContainer {
     flex: 1;
@@ -412,13 +482,28 @@
 .terminalLine {
     font-size: 0.7rem;
     line-height: 1.2;
-    color: rgba(255,255,255,0.7);
+    color: rgba(255, 255, 255, 0.7);
 }
 
-.tTime { color: var(--color-text-muted); margin-right: 0.5rem; }
-.tSys { color: var(--color-logo-blue); margin-right: 0.5rem; }
-.tMsg { color: #a5f3fc; }
-.tBlink { animation: blinker 1s infinite; background: var(--color-logo-blue); color: var(--color-logo-blue); }
+.tTime {
+    color: var(--color-text-muted);
+    margin-right: 0.5rem;
+}
+
+.tSys {
+    color: var(--color-logo-blue);
+    margin-right: 0.5rem;
+}
+
+.tMsg {
+    color: #a5f3fc;
+}
+
+.tBlink {
+    animation: blinker 1s infinite;
+    background: var(--color-logo-blue);
+    color: var(--color-logo-blue);
+}
 
 /* Alerts Feed */
 .alertsPanel {
@@ -435,10 +520,18 @@
     flex-direction: column;
     gap: 0.75rem;
     overflow-y: auto;
+    flex: 1;
     padding-right: 0.5rem;
 }
-.alertsList::-webkit-scrollbar { width: 4px; }
-.alertsList::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+
+.alertsList::-webkit-scrollbar {
+    width: 4px;
+}
+
+.alertsList::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
 
 .emptyAlerts {
     color: var(--color-text-muted);
@@ -459,9 +552,19 @@
     width: 4px;
     flex-shrink: 0;
 }
-.indicatorHigh { background: var(--color-risk-high); box-shadow: 0 0 8px var(--color-risk-high); }
-.indicatorMedium { background: var(--color-risk-medium); }
-.indicatorLow { background: var(--color-risk-low); }
+
+.indicatorHigh {
+    background: var(--color-risk-high);
+    box-shadow: 0 0 8px var(--color-risk-high);
+}
+
+.indicatorMedium {
+    background: var(--color-risk-medium);
+}
+
+.indicatorLow {
+    background: var(--color-risk-low);
+}
 
 .alertContent {
     padding: 0.75rem 1rem;
@@ -480,8 +583,9 @@
 .alertTarget {
     font-size: 0.75rem;
     font-weight: 800;
+    font-family: monospace;
     color: var(--color-text-main);
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
 }
@@ -493,7 +597,7 @@
 
 .alertMessageText {
     font-size: 0.85rem;
-    color: rgba(255,255,255,0.85);
+    color: rgba(255, 255, 255, 0.85);
     line-height: 1.4;
 }
 
@@ -522,13 +626,13 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     padding: 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .dataTable td {
     padding: 1rem;
     font-size: 0.9rem;
-    border-bottom: 1px solid rgba(255,255,255,0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
     vertical-align: middle;
 }
 
@@ -548,24 +652,45 @@
     color: var(--color-text-muted);
 }
 
-.iconAccent { color: var(--color-logo-blue); }
-.iconGood { color: var(--color-risk-low); }
-.iconHigh { color: var(--color-risk-high); }
-.iconSafe { color: var(--color-risk-low); }
+.iconAccent {
+    color: var(--color-logo-blue);
+}
+
+.iconGood {
+    color: var(--color-risk-low);
+}
+
+.iconHigh {
+    color: var(--color-risk-high);
+}
+
+.iconSafe {
+    color: var(--color-risk-low);
+}
 
 .gridStatus {
     font-size: 0.75rem;
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
     color: var(--color-text-muted);
     text-transform: uppercase;
     font-weight: 600;
 }
 
-.colRoute { color: rgba(255,255,255,0.8); }
-.colValue { font-weight: 600; color: var(--color-text-main); }
-.colPing { font-size: 0.75rem; color: var(--color-text-muted); }
+.colRoute {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.colValue {
+    font-weight: 600;
+    color: var(--color-text-main);
+}
+
+.colPing {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
 
 .riskBarContainer {
     display: flex;
@@ -581,9 +706,18 @@
     background: var(--color-risk-low);
 }
 
-.riskBgHigh { background: var(--color-risk-high); box-shadow: 0 0 5px var(--color-risk-high); }
-.riskBgMedium { background: var(--color-risk-medium); }
-.riskBgLow { background: var(--color-risk-low); }
+.riskBgHigh {
+    background: var(--color-risk-high);
+    box-shadow: 0 0 5px var(--color-risk-high);
+}
+
+.riskBgMedium {
+    background: var(--color-risk-medium);
+}
+
+.riskBgLow {
+    background: var(--color-risk-low);
+}
 
 .riskBarText {
     font-size: 0.75rem;
@@ -592,6 +726,187 @@
 }
 
 @media (max-width: 1024px) {
-    .mainGrid { grid-template-columns: 1fr; }
-    .statsGrid { grid-template-columns: 1fr; }
+    .mainGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .statsGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ──────────────────────────────────────────
+   NEW CLASSES FROM AUDIT IMPROVEMENTS
+   ────────────────────────────────────────── */
+
+/* D2: Demo button as CSS class */
+.demoBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.demoBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.demoBtn[data-status="done"] {
+    background: #059669;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.demoBtn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+/* G1: spin animation as CSS module */
+.spinIcon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* D3, D4: Alert card as clickable link */
+.alertCard {
+    display: block;
+    padding: 0.9rem 1rem 0.9rem 0.9rem;
+    border-radius: 10px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+    position: relative;
+    margin-bottom: 0.5rem;
+    /* left border color is set via inline style for severity */
+}
+
+.alertCard:hover {
+    background: rgba(241, 245, 249, 0.9);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transform: translateX(2px);
+}
+
+/* D5: alert type pill */
+.alertTypePill {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.alertTypePill[data-type="Vision"] {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.alertTypePill[data-type="Behavior"] {
+    background: rgba(249, 115, 22, 0.1);
+    color: #f97316;
+}
+
+.alertTypePill[data-type="Route"] {
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
+}
+
+.alertTypePill[data-type="IoT"] {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.alertTypePill[data-type="System"] {
+    background: rgba(100, 116, 139, 0.1);
+    color: #64748b;
+}
+
+/* View All link in panel header */
+.viewAllLink {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #0284c7;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(2, 132, 199, 0.2);
+    transition: all 0.2s;
+}
+
+.viewAllLink:hover {
+    background: rgba(2, 132, 199, 0.06);
+}
+
+/* D6: View details button */
+.viewDetailsBtn {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #0284c7;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(2, 132, 199, 0.06);
+    border: 1px solid rgba(2, 132, 199, 0.15);
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.viewDetailsBtn:hover {
+    background: rgba(2, 132, 199, 0.12);
+}
+
+/* Table sub-line */
+.tableSubline {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+/* G5: Error fallback */
+.errorFallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: rgba(241, 245, 249, 0.5);
+    border-radius: 10px;
+    border: 1px dashed #cbd5e1;
+}
+
+/* D12: taller map section */
+.mapContainer {
+    height: 480px !important;
 }

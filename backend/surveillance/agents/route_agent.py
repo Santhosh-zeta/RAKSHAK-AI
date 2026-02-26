@@ -36,7 +36,9 @@ class RouteOutput(BaseModel):
 class RouteAgent:
     def __init__(self):
         self.redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        self.model_path = "AI-models/route_model.pkl"
+        self.model_path = os.path.join(
+            os.path.dirname(__file__), "..", "ai_models", "route_model.pkl"
+        )
         self.input_channel = "rakshak.twin.output"
         self.output_channel = "rakshak.route.output"
         self.redis = None

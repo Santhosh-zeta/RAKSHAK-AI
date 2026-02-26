@@ -2,150 +2,283 @@
 
 import { useState } from 'react';
 import styles from './page.module.css';
-import { Shield, BrainCircuit, Box, Monitor, HardHat, Shirt } from 'lucide-react';
+import { Shield, BrainCircuit, Monitor, HardHat, Shirt, Pill, Car, CheckCircle2, Box, History } from 'lucide-react';
+import { ROUTE_OPTIONS, CARGO_TYPE_OPTIONS, computeRiskReport, RiskReportResult } from '@/services/riskUtils';
 
-const cargoOptions = [
-    { id: 'Steel', icon: HardHat, label: 'Steel' },
-    { id: 'Electronics', icon: Monitor, label: 'Electronics' },
-    { id: 'Cement', icon: Box, label: 'Cement' },
-    { id: 'Textiles', icon: Shirt, label: 'Textiles' }
-];
+const CARGO_ICONS: Record<string, React.ElementType> = {
+    Electronics: Monitor, Pharmaceuticals: Pill, Automotive: Car,
+    Textiles: Shirt, Steel: HardHat, Cement: Box,
+};
+
+function riskColor(score: number) {
+    return score >= 75 ? '#ef4444' : score >= 55 ? '#f59e0b' : score >= 35 ? '#3b82f6' : '#10b981';
+}
+
+// R5: Prediction history entry
+interface HistoryEntry { params: string; result: RiskReportResult; at: string; }
 
 export default function RiskAnalysis() {
     const [cargoType, setCargoType] = useState('Electronics');
-    const [route, setRoute] = useState('Chennai → Mumbai');
-    const [time, setTime] = useState('Night');
+    const [route, setRoute] = useState(ROUTE_OPTIONS[0].label); // R3: shared constant
+    const [time, setTime] = useState<'Day' | 'Night'>('Night');
     const [value, setValue] = useState('1500000');
-
+    const [driverExp, setDriverExp] = useState('3');
     const [isPredicting, setIsPredicting] = useState(false);
-    const [result, setResult] = useState<{ score: number, reasons: string[] } | null>(null);
+    const [result, setResult] = useState<RiskReportResult | null>(null);
+    const [history, setHistory] = useState<HistoryEntry[]>([]); // R5
 
-    const handlePredict = (e: React.FormEvent) => {
+    // R1: No fake setTimeout — instant computation via shared utility (R2)
+    const handlePredict = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsPredicting(true);
 
-        // Simulate API delay
-        setTimeout(() => {
-            // Dummy logic to generate risk score based on inputs
-            let score = 40;
-            let reasons = [];
+        // R6: Try backend first, fall back to client-side
+        let computed: RiskReportResult | null = null;
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/agents/risk-fusion/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    route, cargo_type: cargoType, travel_time: time,
+                    cargo_value: parseFloat(value), distance_km: ROUTE_OPTIONS.find(r => r.label === route)?.distanceKm ?? 500,
+                    driver_experience: parseFloat(driverExp)
+                }),
+                signal: AbortSignal.timeout(3000),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                computed = {
+                    score: data.risk_score ?? data.score, level: data.risk_level ?? data.level,
+                    breakdown: data.breakdown ?? [],
+                    reasons: data.reasons ?? [],
+                    dangerZones: data.danger_zones ?? ROUTE_OPTIONS.find(r => r.label === route)?.dangerZones ?? [],
+                    timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+                };
+            }
+        } catch { /* backend unreachable — use client-side */ }
 
-            if (time === 'Night') { score += 25; reasons.push('Night Travel Increases Risk'); }
-            if (cargoType === 'Electronics') { score += 15; reasons.push('High value, easily fenceable cargo'); }
-            if (route.includes('Mumbai')) { score += 10; reasons.push('Route passes through known risk zones'); }
+        if (!computed) {
+            computed = computeRiskReport({
+                route, cargoType, travelTime: time,
+                cargoValue: parseFloat(value) || 0,
+                distanceKm: ROUTE_OPTIONS.find(r => r.label === route)?.distanceKm ?? 500,
+                driverExperienceYrs: parseFloat(driverExp) || 1,
+            });
+        }
 
-            setResult({ score, reasons });
-            setIsPredicting(false);
-        }, 1500);
+        setResult(computed);
+        // R5: add to history
+        setHistory(prev => [
+            { params: `${route} | ${cargoType} | ${time}`, result: computed!, at: computed!.timestamp },
+            ...prev.slice(0, 4) // keep last 5
+        ]);
+        setIsPredicting(false);
     };
+
+    const CARGO_COLS = 3; // R7: 3-col on desktop, 2-col on mobile via CSS
 
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h1>RISK ANALYSIS</h1>
-                <p>Predictive Engine Simulation</p>
+                <div>
+                    <h1 className={styles.title}>Risk Analysis Engine</h1>
+                    <p className={styles.subtitle}>AI-powered pre-trip risk assessment</p>
+                </div>
             </div>
 
-            <div className={styles.analysisGrid}>
+            <div className={styles.mainGrid}>
                 {/* Input Form */}
                 <section className={styles.formSection}>
-                    <form className={styles.predictionForm} onSubmit={handlePredict}>
+                    <form onSubmit={handlePredict} className={styles.riskForm}>
+                        {/* Route Selection — R3: shared ROUTE_OPTIONS */}
                         <div className={styles.formGroup}>
-                            <label>Cargo Type</label>
+                            <label className={styles.formLabel}>Route</label>
+                            <select
+                                className={styles.select}
+                                value={route}
+                                onChange={e => setRoute(e.target.value)}
+                                aria-label="Select transport route"
+                            >
+                                {ROUTE_OPTIONS.map(r => (
+                                    <option key={r.label} value={r.label}>{r.label} (~{r.distanceKm} km)</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Cargo Type — R7: responsive grid */}
+                        <div className={styles.formGroup}>
+                            <label className={styles.formLabel}>Cargo Type</label>
                             <div className={styles.cargoGrid}>
-                                {cargoOptions.map(option => (
-                                    <div
-                                        key={option.id}
-                                        className={`${styles.cargoCard} ${cargoType === option.id ? styles.selected : ''}`}
-                                        onClick={() => setCargoType(option.id)}
+                                {CARGO_TYPE_OPTIONS.map(cargo => {
+                                    const Icon = CARGO_ICONS[cargo.id] ?? Box;
+                                    return (
+                                        <button
+                                            key={cargo.id}
+                                            type="button"
+                                            className={`${styles.cargoBtn} ${cargoType === cargo.id ? styles.cargoBtnActive : ''}`}
+                                            onClick={() => setCargoType(cargo.id)}
+                                            aria-label={`Select ${cargo.label} cargo`}
+                                            aria-pressed={cargoType === cargo.id}
+                                        >
+                                            <Icon size={20} />
+                                            <span>{cargo.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Time of Travel */}
+                        <div className={styles.formGroup}>
+                            <label className={styles.formLabel}>Time of Travel</label>
+                            <div className={styles.timeGroup}>
+                                {(['Day', 'Night'] as const).map(t => (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        className={`${styles.timeBtn} ${time === t ? styles.timeBtnActive : ''}`}
+                                        onClick={() => setTime(t)}
+                                        aria-label={`${t} travel`}
+                                        aria-pressed={time === t}
                                     >
-                                        <option.icon size={24} className={styles.cargoIcon} />
-                                        <span>{option.label}</span>
-                                    </div>
+                                        {t === 'Day' ? '☀️' : '🌙'} {t}
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className={styles.formGroup}>
-                            <label>Route</label>
-                            <input
-                                type="text"
-                                value={route}
-                                onChange={(e) => setRoute(e.target.value)}
-                                placeholder="e.g., Chennai → Mumbai"
-                            />
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <label>Travel Time</label>
-                            <select value={time} onChange={(e) => setTime(e.target.value)}>
-                                <option value="Day">Day Travel</option>
-                                <option value="Night">Night Travel</option>
-                            </select>
-                        </div>
-
-                        <div className={styles.formGroup}>
-                            <label>Cargo Value (₹)</label>
-                            <input
-                                type="number"
-                                value={value}
-                                onChange={(e) => setValue(e.target.value)}
-                            />
+                        {/* Cargo Value */}
+                        <div className={styles.inputRow}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Cargo Value (₹)</label>
+                                <input
+                                    type="number"
+                                    className={styles.input}
+                                    value={value}
+                                    onChange={e => setValue(e.target.value)}
+                                    min="0"
+                                    aria-label="Cargo value in rupees"
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Driver Experience (years)</label>
+                                <input
+                                    type="number"
+                                    className={styles.input}
+                                    value={driverExp}
+                                    onChange={e => setDriverExp(e.target.value)}
+                                    min="0" max="40"
+                                    aria-label="Driver experience in years"
+                                />
+                            </div>
                         </div>
 
                         <button
                             type="submit"
                             className={styles.predictBtn}
                             disabled={isPredicting}
+                            aria-label="Run risk prediction"
                         >
-                            {isPredicting ? 'Analyzing Risk Profile...' : 'Predict Risk'}
-                            <BrainCircuit size={20} />
+                            <Shield size={18} />
+                            {isPredicting ? 'Analyzing...' : 'Predict Risk Score'}
                         </button>
                     </form>
                 </section>
 
-                {/* Prediction Results */}
+                {/* Results */}
                 <section className={styles.resultSection}>
-                    {isPredicting ? (
-                        <div className={styles.loadingState}>
-                            <BrainCircuit size={48} className={styles.spinnerIcon} />
-                            <h3>Running AI Intel Matrix...</h3>
-                            <div className={styles.progressBar}>
-                                <div className={styles.progressFill}></div>
-                            </div>
-                            <p className={styles.loadingText}>Scanning route vectors across thousands of historic incidents.</p>
+                    {result ? (<>
+                        {/* Gauge — R4: corrected arc circumference π*r = π*15 ≈ 47.12 */}
+                        <div className={styles.gaugeWrapper}>
+                            <svg viewBox="0 0 120 70" className={styles.gaugeSvg}>
+                                <path d="M10 62 A 50 50 0 0 1 110 62" fill="none" stroke="#e2e8f0" strokeWidth="10" strokeLinecap="round" />
+                                <path
+                                    d="M10 62 A 50 50 0 0 1 110 62" fill="none"
+                                    stroke={riskColor(result.score)} strokeWidth="10" strokeLinecap="round"
+                                    strokeDasharray={`${(result.score / 100) * 157.08} 157.08`} // π*50 corrected
+                                    style={{ transition: 'stroke-dasharray 1s cubic-bezier(0.4,0,0.2,1)' }}
+                                />
+                                <text x="60" y="55" textAnchor="middle" fontSize="22" fontWeight="900" fill={riskColor(result.score)}>{result.score}</text>
+                                <text x="60" y="68" textAnchor="middle" fontSize="8" fill="#94a3b8">{result.level.toUpperCase()} RISK</text>
+                            </svg>
                         </div>
-                    ) : result ? (
-                        <div className={styles.resultCard}>
-                            <div className={styles.resultHeader}>
-                                <Shield className={styles.iconAccent} size={32} />
-                                <h2>AI Prediction Complete</h2>
-                            </div>
 
-                            <div className={styles.scoreDisplay}>
-                                <span className={styles.scoreLabel}>THEFT RISK</span>
-                                <span className={`${styles.scoreValue} ${result.score > 70 ? styles.highScore : styles.medScore}`}>
-                                    {result.score}%
-                                </span>
-                            </div>
-
-                            <div className={styles.reasonList}>
-                                <h3>Primary Risk Factors:</h3>
-                                <ul>
-                                    {result.reasons.map((r, i) => (
-                                        <li key={i}>{r}</li>
-                                    ))}
-                                </ul>
-                            </div>
+                        {/* Breakdown bars */}
+                        <div className={styles.breakdownSection}>
+                            <h3 className={styles.breakdownTitle}>Risk Factor Breakdown</h3>
+                            {result.breakdown.map(item => (
+                                <div key={item.label} className={styles.breakdownItem}>
+                                    <div className={styles.breakdownLabelRow}>
+                                        <span>{item.label}</span>
+                                        <span style={{ color: riskColor(item.score), fontWeight: 800 }}>{item.score}/100</span>
+                                    </div>
+                                    <div className={styles.breakdownBar}>
+                                        <div className={styles.breakdownFill}
+                                            style={{ width: `${item.score}%`, background: riskColor(item.score), transition: 'width 0.8s ease' }}
+                                        />
+                                        <span className={styles.weightLabel}>×{item.weight}%</span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ) : (
-                        <div className={styles.emptyState}>
-                            <BrainCircuit size={48} className={styles.emptyIcon} />
-                            <p>Enter trip details and click Predict to activate the AI analysis engine.</p>
+
+                        {/* Risk Reasons */}
+                        {result.reasons.length > 0 && (
+                            <div className={styles.reasonsSection}>
+                                <h3 className={styles.breakdownTitle}>AI Risk Reasons</h3>
+                                {result.reasons.map((r, i) => (
+                                    <div key={i} className={styles.reasonItem}>
+                                        <span style={{ color: riskColor(result.score) }}>⚠</span> {r}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Danger Zones */}
+                        {result.dangerZones.length > 0 && (
+                            <div className={styles.dangerZones}>
+                                <h3 className={styles.breakdownTitle} style={{ color: '#ef4444' }}>⚠ Danger Zones on Route</h3>
+                                {result.dangerZones.map((z, i) => (
+                                    <div key={i} className={styles.dangerZoneItem}>{z}</div>
+                                ))}
+                            </div>
+                        )}
+
+                        <p className={styles.reportTimestamp}>Generated: {result.timestamp}</p>
+                    </>) : (
+                        <div className={styles.emptyResult}>
+                            <BrainCircuit size={48} style={{ color: '#cbd5e1' }} />
+                            <p>Fill in the parameters and run the prediction engine.</p>
                         </div>
                     )}
                 </section>
             </div>
+
+            {/* R5: Prediction History */}
+            {history.length > 0 && (
+                <section className={styles.historySection}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        <History size={18} style={{ color: '#64748b' }} />
+                        <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#334155' }}>Prediction History</h3>
+                    </div>
+                    <div className={styles.historyGrid}>
+                        {history.map((entry, i) => (
+                            <div key={i} className={styles.historyCard}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                    <span style={{ fontWeight: 800, fontSize: '1.5rem', color: riskColor(entry.result.score) }}>
+                                        {entry.result.score}
+                                    </span>
+                                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>{entry.at}</span>
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{entry.params}</div>
+                                <div style={{ marginTop: 4, fontSize: '0.72rem', fontWeight: 800, color: riskColor(entry.result.score) }}>
+                                    {entry.result.level.toUpperCase()} RISK
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }

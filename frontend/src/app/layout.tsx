@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import "./globals.css";
 
-const plusJakartaSans = Plus_Jakarta_Sans({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800", "900"] });
 
 export const metadata: Metadata = {
-  title: "RAKSHAK AI | Predictive Cargo Theft Intelligence",
-  description: "AI system that predicts cargo theft before it happens.",
+  title: {
+    default: "RAKSHAK AI | Predictive Cargo Theft Intelligence",
+    template: "%s | RAKSHAK AI",
+  },
+  description: "AI-powered predictive cargo theft prevention system — Computer Vision, Behavioral Analytics, Route Intelligence.",
 };
 
 export default function RootLayout({
@@ -17,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={plusJakartaSans.className} suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         <Navbar />
         <main className="main-content">
           {children}
