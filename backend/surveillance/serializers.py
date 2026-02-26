@@ -1,5 +1,26 @@
 from rest_framework import serializers
-from .models import LogisticsCompany, ControlAreaContact, Truck, Trip, GPSLog, Alert
+from django.contrib.auth.models import User
+from .models import LogisticsCompany, ControlAreaContact, CompanyUser, Truck, Trip, GPSLog, Alert
+
+
+class CompanyUserSerializer(serializers.ModelSerializer):
+    username   = serializers.CharField(source='user.username', read_only=True)
+    email      = serializers.EmailField(source='user.email', read_only=True)
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name  = serializers.CharField(source='user.last_name', read_only=True)
+    full_name  = serializers.ReadOnlyField()
+    company_name = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model  = CompanyUser
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
+            'role', 'company', 'company_name', 'is_active', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def get_company_name(self, obj):
+        return obj.company.name if obj.company else "Platform Admin"
 
 
 class ControlAreaContactSerializer(serializers.ModelSerializer):

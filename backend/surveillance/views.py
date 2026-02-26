@@ -9,6 +9,7 @@ from .serializers import (
     LogisticsCompanySerializer, ControlAreaContactSerializer,
     TruckSerializer, TripSerializer, GPSLogSerializer, AlertSerializer,
 )
+from .permissions import IsCompanyUserOrAdmin, get_company_filter
 
 
 # ============================================================
@@ -17,11 +18,15 @@ from .serializers import (
 
 class LogisticsCompanyViewSet(viewsets.ModelViewSet):
     """CRUD for logistics companies. Includes nested contacts and computed truck/trip counts."""
-    queryset = LogisticsCompany.objects.prefetch_related('contacts', 'trucks').all()
     serializer_class = LogisticsCompanySerializer
+    permission_classes = [IsCompanyUserOrAdmin]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = LogisticsCompany.objects.prefetch_related('contacts', 'trucks').all()
+        company = get_company_filter(self.request.user)
+        if company:
+            qs = qs.filter(company_id=company.company_id)
+            
         active = self.request.query_params.get('active')
         if active is not None:
             qs = qs.filter(active=active.lower() == 'true')
@@ -32,14 +37,12 @@ class LogisticsCompanyViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def trucks(self, request, pk=None):
-        """List all trucks belonging to this company."""
         company = self.get_object()
         trucks = company.trucks.all()
         return Response(TruckSerializer(trucks, many=True).data)
 
     @action(detail=True, methods=['get'])
     def alerts(self, request, pk=None):
-        """List recent alerts across all trips of this company's trucks."""
         company = self.get_object()
         truck_ids = company.trucks.values_list('truck_id', flat=True)
         trip_ids  = Trip.objects.filter(truck__truck_id__in=truck_ids).values_list('trip_id', flat=True)
@@ -48,7 +51,6 @@ class LogisticsCompanyViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
-        """Dashboard stats for this company."""
         company  = self.get_object()
         trucks   = company.trucks.all()
         truck_ids = trucks.values_list('truck_id', flat=True)
@@ -73,12 +75,15 @@ class LogisticsCompanyViewSet(viewsets.ModelViewSet):
 # ============================================================
 
 class ControlAreaContactViewSet(viewsets.ModelViewSet):
-    """CRUD for control room contacts. Filter by company_id."""
-    queryset = ControlAreaContact.objects.select_related('company').all()
     serializer_class = ControlAreaContactSerializer
+    permission_classes = [IsCompanyUserOrAdmin]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = ControlAreaContact.objects.select_related('company').all()
+        company = get_company_filter(self.request.user)
+        if company:
+            qs = qs.filter(company=company)
+            
         company_id = self.request.query_params.get('company_id')
         if company_id:
             qs = qs.filter(company__company_id=company_id)
@@ -93,11 +98,15 @@ class ControlAreaContactViewSet(viewsets.ModelViewSet):
 # ============================================================
 
 class TruckViewSet(viewsets.ModelViewSet):
-    queryset = Truck.objects.select_related('company').all()
     serializer_class = TruckSerializer
+    permission_classes = [IsCompanyUserOrAdmin]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = Truck.objects.select_related('company').all()
+        company_filter = get_company_filter(self.request.user)
+        if company_filter:
+            qs = qs.filter(company=company_filter)
+            
         company_id = self.request.query_params.get('company_id')
         if company_id:
             qs = qs.filter(company__company_id=company_id)
@@ -112,11 +121,15 @@ class TruckViewSet(viewsets.ModelViewSet):
 # ============================================================
 
 class TripViewSet(viewsets.ModelViewSet):
-    queryset = Trip.objects.select_related('truck__company').all()
     serializer_class = TripSerializer
+    permission_classes = [IsCompanyUserOrAdmin]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = Trip.objects.select_related('truck__company').all()
+        company_filter = get_company_filter(self.request.user)
+        if company_filter:
+            qs = qs.filter(truck__company=company_filter)
+            
         company_id = self.request.query_params.get('company_id')
         if company_id:
             qs = qs.filter(truck__company__company_id=company_id)
@@ -164,11 +177,15 @@ class TripViewSet(viewsets.ModelViewSet):
 # ============================================================
 
 class GPSLogViewSet(viewsets.ModelViewSet):
-    queryset = GPSLog.objects.all()
     serializer_class = GPSLogSerializer
+    permission_classes = [IsCompanyUserOrAdmin]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = GPSLog.objects.all()
+        company_filter = get_company_filter(self.request.user)
+        if company_filter:
+            qs = qs.filter(trip__truck__company=company_filter)
+            
         trip_id = self.request.query_params.get('trip_id')
         if trip_id:
             qs = qs.filter(trip__trip_id=trip_id)
@@ -176,15 +193,19 @@ class GPSLogViewSet(viewsets.ModelViewSet):
 
 
 # ============================================================
-# Alert — with automatic SMTP + SMS notification dispatch
+# Alert
 # ============================================================
 
 class AlertViewSet(viewsets.ModelViewSet):
-    queryset = Alert.objects.select_related('trip__truck__company').all()
     serializer_class = AlertSerializer
+    permission_classes = [IsCompanyUserOrAdmin]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = Alert.objects.select_related('trip__truck__company').all()
+        company_filter = get_company_filter(self.request.user)
+        if company_filter:
+            qs = qs.filter(trip__truck__company=company_filter)
+            
         trip_id = self.request.query_params.get('trip_id')
         if trip_id:
             qs = qs.filter(trip__trip_id=trip_id)
@@ -200,14 +221,12 @@ class AlertViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        """Create alert and auto-dispatch SMTP + Twilio notifications."""
         from .notification_service import dispatch_alert
         alert = serializer.save()
         trip  = alert.trip
         truck = trip.truck
         company = truck.company
 
-        # Only notify for Medium or above
         severity_rank = {'Low': 1, 'Medium': 2, 'High': 3, 'Critical': 4}
         if severity_rank.get(alert.severity, 0) >= 2:
             try:
@@ -222,7 +241,6 @@ class AlertViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def resolve(self, request, pk=None):
-        """Mark alert as resolved."""
         alert = self.get_object()
         alert.resolved = True
         alert.save(update_fields=['resolved'])
@@ -230,7 +248,6 @@ class AlertViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def resend_notifications(self, request, pk=None):
-        """Manually re-send SMTP + SMS notifications for this alert."""
         from .notification_service import dispatch_alert
         alert = self.get_object()
         trip  = alert.trip
