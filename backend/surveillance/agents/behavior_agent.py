@@ -34,7 +34,9 @@ class BehaviourOutput(BaseModel):
 class BehaviourAgent:
     def __init__(self):
         self.redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        self.model_path = "AI-models/behaviour_model.pkl"
+        self.model_path = os.path.join(
+            os.path.dirname(__file__), "..", "ai_models", "behavior_model.pkl"
+        )
         self.input_channel = "rakshak.perception.output"
         self.output_channel = "rakshak.behaviour.output"
         self.redis = None
