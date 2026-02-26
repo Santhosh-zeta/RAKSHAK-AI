@@ -86,6 +86,8 @@ class SimulationView(views.APIView):
     (injecting a person detection event and escalating risk).
     """
     def post(self, request):
+        from .services.sms_service import SMSService
+        
         trip_id = request.data.get('trip_id')
         
         if not trip_id:
@@ -100,6 +102,7 @@ class SimulationView(views.APIView):
         Alert.objects.create(
             trip=trip,
             type='Behavior',
+            severity='Medium',
             risk_score=35.0,
             description="Behavior Agent: Stop duration exceeded 15 minutes."
         )
@@ -108,6 +111,7 @@ class SimulationView(views.APIView):
         Alert.objects.create(
             trip=trip,
             type='Vision',
+            severity='High',
             risk_score=45.0,
             description="Vision AI: Multiple persons detected near truck rear doors."
         )
@@ -116,14 +120,22 @@ class SimulationView(views.APIView):
         Alert.objects.create(
             trip=trip,
             type='System',
+            severity='Critical',
             risk_score=80.0,
             description="Decision Engine: System locked container doors and notified police."
         )
 
         trip.status = 'Alert'
         trip.save()
+        
+        # Hackathon Demo Notification Fire
+        phone_number = trip.truck.driver_phone or "+1234567890" 
+        SMSService.send_alert(
+            to_phone=phone_number,
+            message=f"CRITICAL RAKSHAK ALERT:\nTrip {str(trip.trip_id)[:8]} is under threat! Container locked. Police notified."
+        )
 
         return Response({
-            "message": "Demo scenario executed. Risk escalated and alerts generated.",
+            "message": "Demo scenario executed. Risk escalated, alerts generated, SMS triggered.",
             "trip_id": trip.trip_id
         }, status=status.HTTP_200_OK)

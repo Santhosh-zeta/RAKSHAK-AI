@@ -10,13 +10,48 @@ class TripSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
         fields = '__all__'
+        
+    def validate_baseline_route_risk(self, value):
+        if not (0.0 <= value <= 100.0):
+            raise serializers.ValidationError("Risk must be between 0 and 100.")
+        return value
+        
+    def validate_current_calculated_risk(self, value):
+        if not (0.0 <= value <= 100.0):
+            raise serializers.ValidationError("Risk must be between 0 and 100.")
+        return value
 
 class GPSLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = GPSLog
         fields = '__all__'
+        
+    def validate_latitude(self, value):
+        if not (-90.0 <= value <= 90.0):
+            raise serializers.ValidationError("Latitude must be between -90 and 90.")
+        return value
+        
+    def validate_longitude(self, value):
+        if not (-180.0 <= value <= 180.0):
+            raise serializers.ValidationError("Longitude must be between -180 and 180.")
+        return value
+        
+    def validate_speed_kmh(self, value):
+        if not (0.0 <= value <= 160.0): # Allow up to 160 for extreme scenarios
+            raise serializers.ValidationError("Speed must be a realistic physical value between 0 and 160 km/h.")
+        return value
+        
+    def validate_heading(self, value):
+        if not (0.0 <= value <= 360.0):
+            raise serializers.ValidationError("Heading must be a valid degree between 0 and 360.")
+        return value
 
 class AlertSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alert
         fields = '__all__'
+
+    def validate_risk_score(self, value):
+        if not (0.0 <= value <= 100.0):
+            raise serializers.ValidationError("Risk score must be a percentage between 0 and 100.")
+        return value

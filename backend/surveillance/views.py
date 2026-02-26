@@ -12,6 +12,34 @@ class TruckViewSet(viewsets.ModelViewSet):
 class TripViewSet(viewsets.ModelViewSet):
     queryset = Trip.objects.all()
     serializer_class = TripSerializer
+    
+    def perform_create(self, serializer):
+        from .services.map_service import GeoSpatialService
+        
+        # 1. Save initial trip details to access names
+        trip = serializer.save()
+        
+        # 2. Get coords
+        start_coords = GeoSpatialService.get_coordinates(trip.start_location_name)
+        dest_coords = GeoSpatialService.get_coordinates(trip.destination_name)
+        trip.start_location_coords = start_coords
+        trip.destination_coords = dest_coords
+        
+        # 3. Calculate distance and risk
+        route_info = GeoSpatialService.calculate_route(start_coords, dest_coords)
+        if route_info["success"]:
+            # Optionally set estimated arrival here based on duration
+            pass
+            
+        distance = route_info.get("distance_meters", 100000) # fallback 100km
+        
+        baseline_risk = GeoSpatialService.calculate_baseline_risk(
+            distance, trip.start_location_name, trip.destination_name
+        )
+        
+        trip.baseline_route_risk = baseline_risk
+        trip.current_calculated_risk = baseline_risk
+        trip.save()
 
     @action(detail=True, methods=['get'])
     def dashboard(self, request, pk=None):
