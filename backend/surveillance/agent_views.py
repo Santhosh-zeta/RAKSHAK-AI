@@ -513,3 +513,426 @@ class SimulationView(views.APIView):
             "message": "Demo scenario executed. Risk escalated, alerts generated, SMS triggered.",
             "trip_id": trip.trip_id
         }, status=status.HTTP_200_OK)
+
+
+# ===========================================================================
+# Digital Twin Agent Bridge
+# ===========================================================================
+_digital_twin_agent = None
+
+def _get_digital_twin_agent():
+    """Lazily initialise the DigitalTwinAgent (connects to Redis for baseline state)."""
+    global _digital_twin_agent
+    if _digital_twin_agent is None:
+        from surveillance.agents.digital_twin_agent import DigitalTwinAgent
+        import redis.asyncio as aioredis, os
+        agent = DigitalTwinAgent()
+        agent.running = True
+        # Connect Redis for baseline lookups; fall back gracefully
+        try:
+            async def _connect():
+                r = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+                await r.ping()
+                agent.redis = r
+                await agent.start()  # loads baselines from Redis
+            asyncio.run(_connect())
+        except Exception:
+            agent.redis = None
+            # Patch baseline lookup to return default when Redis absent
+            async def _default_baseline(tid): return {
+                "expected_weight_kg": 2000.0,
+                "expected_door_state": "CLOSED",
+                "planned_route_center": {"lat": 28.6139, "lon": 77.2090},
+                "max_deviation_km": 0.5
+            }
+            agent._get_baseline = _default_baseline
+        _digital_twin_agent = agent
+    return _digital_twin_agent
+
+
+class DigitalTwinView(views.APIView):
+    """
+    HTTP bridge into the DigitalTwinAgent.
+
+    POST /api/agents/digital-twin/
+    Body (IoTTelemetry):  {
+        "trip_id": "<uuid>",
+        "truck_id": "TRK-001",
+        "timestamp": "2026-02-26T10:00:00",
+        "gps_lat": 13.08,  "gps_lon": 80.27,
+        "door_state": "CLOSED",          # "OPEN" | "CLOSED"
+        "cargo_weight_kg": 1950.0,
+        "engine_on": true,
+        "driver_rfid_scanned": true,
+        "iot_signal_strength": 0.85     # 0.0-1.0
+    }
+    """
+    def post(self, request):
+        from surveillance.agents.digital_twin_agent import IoTTelemetry
+        from datetime import datetime as dt
+
+        trip_id = request.data.get('trip_id')
+        if not trip_id:
+            return Response({"error": "trip_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            trip = Trip.objects.get(trip_id=trip_id)
+        except Trip.DoesNotExist:
+            return Response({"error": "Trip not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Build IoTTelemetry
+        try:
+            telemetry = IoTTelemetry(
+                truck_id=request.data.get('truck_id', 'TRK-001'),
+                timestamp=request.data.get('timestamp', dt.now().isoformat()),
+                gps_lat=float(request.data.get('gps_lat', 0.0)),
+                gps_lon=float(request.data.get('gps_lon', 0.0)),
+                door_state=request.data.get('door_state', 'CLOSED'),
+                cargo_weight_kg=float(request.data.get('cargo_weight_kg', 2000.0)),
+                engine_on=bool(request.data.get('engine_on', True)),
+                driver_rfid_scanned=bool(request.data.get('driver_rfid_scanned', True)),
+                iot_signal_strength=float(request.data.get('iot_signal_strength', 1.0)),
+            )
+        except Exception as e:
+            return Response({"error": f"Invalid payload: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            agent = _get_digital_twin_agent()
+            baseline = asyncio.run(agent._get_baseline(telemetry.truck_id))
+            deviations, deviation_score = asyncio.run(agent._detect_deviations(telemetry, baseline))
+            twin_status = agent._classify_status(deviation_score)
+        except Exception as e:
+            return Response({"error": f"DigitalTwinAgent error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Publish to Redis so RouteAgent / RiskFusion can receive it
+        if _digital_twin_agent and _digital_twin_agent.redis:
+            try:
+                payload = {
+                    "truck_id": telemetry.truck_id,
+                    "timestamp": dt.now().isoformat(),
+                    "gps_lat": telemetry.gps_lat, "gps_lon": telemetry.gps_lon,
+                    "door_state": telemetry.door_state,
+                    "cargo_weight_kg": telemetry.cargo_weight_kg,
+                    "engine_on": telemetry.engine_on,
+                    "driver_rfid_scanned": telemetry.driver_rfid_scanned,
+                    "deviation_score": deviation_score,
+                    "deviations": deviations,
+                    "twin_status": twin_status,
+                    "iot_signal_fresh": True,
+                }
+                asyncio.run(_digital_twin_agent.redis.publish(
+                    _digital_twin_agent.output_channel, json.dumps(payload)
+                ))
+            except Exception:
+                pass
+
+        # Persist alert if degraded or critical
+        alert_obj = None
+        if twin_status in ("DEGRADED", "CRITICAL"):
+            risk_score = round(min(deviation_score * 100, 100.0), 2)
+            severity = "Critical" if twin_status == "CRITICAL" else "High"
+            alert_obj = Alert.objects.create(
+                trip=trip, type='System', severity=severity,
+                risk_score=risk_score,
+                description=f"Digital Twin: {twin_status}. Issues: {'; '.join(deviations)}",
+                ai_explanation=f"Deviation score: {deviation_score:.2f}. Baseline: {baseline}"
+            )
+            if risk_score >= 70 and trip.status not in ('Alert', 'Completed'):
+                trip.status = 'Alert'
+                trip.current_calculated_risk = risk_score
+                trip.save()
+
+        return Response({
+            "twin_status": twin_status,
+            "deviation_score": deviation_score,
+            "deviations": deviations,
+            "alert_created": AlertSerializer(alert_obj).data if alert_obj else None,
+            "published_to_redis": _digital_twin_agent.redis is not None,
+        }, status=status.HTTP_200_OK)
+
+
+# ===========================================================================
+# Route Agent Bridge
+# ===========================================================================
+_route_agent = None
+
+def _get_route_agent():
+    """Lazily initialise the RouteAgent with default geometry."""
+    global _route_agent
+    if _route_agent is None:
+        from surveillance.agents.route_agent import RouteAgent
+        import os, redis.asyncio as aioredis
+        agent = RouteAgent()
+        agent.running = True
+        # Load corridors (default geometry if model not present)
+        asyncio.run(agent._load_default_geometry())
+        # Redis (optional)
+        try:
+            async def _connect():
+                r = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+                await r.ping()
+                agent.redis = r
+            asyncio.run(_connect())
+        except Exception:
+            agent.redis = None
+        _route_agent = agent
+    return _route_agent
+
+
+class RouteView(views.APIView):
+    """
+    HTTP bridge into the RouteAgent (Shapely geofencing).
+
+    POST /api/agents/route/
+    Body: {
+        "trip_id": "<uuid>",
+        "truck_id": "TRK-001",
+        "gps_lat": 28.61,  "gps_lon": 77.20
+    }
+    """
+    def post(self, request):
+        from shapely.geometry import Point
+        from datetime import datetime as dt
+
+        trip_id = request.data.get('trip_id')
+        if not trip_id:
+            return Response({"error": "trip_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            trip = Trip.objects.get(trip_id=trip_id)
+        except Trip.DoesNotExist:
+            return Response({"error": "Trip not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            gps_lat = float(request.data.get('gps_lat'))
+            gps_lon = float(request.data.get('gps_lon'))
+        except (TypeError, ValueError):
+            return Response({"error": "gps_lat and gps_lon are required floats"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            agent = _get_route_agent()
+            point = Point(gps_lon, gps_lat)
+            hour = dt.now().hour
+            in_safe, deviation_km, corridor_name = agent._check_safe_corridor(point)
+            in_risk, risk_zone_name = agent._check_risk_zones(point)
+            multiplier = agent._compute_time_multiplier(hour)
+            route_risk = agent._compute_route_risk_score(in_safe, deviation_km, in_risk, multiplier)
+        except Exception as e:
+            return Response({"error": f"RouteAgent error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Publish TwinOutput-compatible payload to Redis for RiskFusion
+        if _route_agent and _route_agent.redis:
+            try:
+                payload = {
+                    "truck_id": request.data.get('truck_id', 'TRK-001'),
+                    "timestamp": dt.now().isoformat(),
+                    "gps_lat": gps_lat, "gps_lon": gps_lon,
+                    "in_safe_corridor": in_safe,
+                    "deviation_km": deviation_km, "in_high_risk_zone": in_risk,
+                    "high_risk_zone_name": risk_zone_name,
+                    "route_risk_score": route_risk,
+                    "time_multiplier": multiplier,
+                    "nearest_corridor_name": corridor_name,
+                }
+                asyncio.run(_route_agent.redis.publish(
+                    _route_agent.output_channel, json.dumps(payload)
+                ))
+            except Exception:
+                pass
+
+        # Persist alert for route violations
+        alert_obj = None
+        if not in_safe or in_risk:
+            risk_score = round(min(route_risk * 100, 100.0), 2)
+            severity = "Critical" if risk_score >= 80 else "High"
+            reasons = []
+            if not in_safe: reasons.append(f"Off safe corridor by {deviation_km:.2f}km")
+            if in_risk:     reasons.append(f"In high-risk zone: {risk_zone_name}")
+            alert_obj = Alert.objects.create(
+                trip=trip, type='Route', severity=severity,
+                risk_score=risk_score,
+                description=f"Route Agent: {'; '.join(reasons)}.",
+                ai_explanation=f"Shapely check: corridor={corridor_name}, multiplier={multiplier}"
+            )
+            if risk_score >= 70 and trip.status not in ('Alert', 'Completed'):
+                trip.status = 'Alert'
+                trip.current_calculated_risk = risk_score
+                trip.save()
+
+        return Response({
+            "in_safe_corridor": in_safe,
+            "deviation_km": deviation_km,
+            "in_high_risk_zone": in_risk,
+            "high_risk_zone_name": risk_zone_name,
+            "route_risk_score": route_risk,
+            "nearest_corridor": corridor_name,
+            "alert_created": AlertSerializer(alert_obj).data if alert_obj else None,
+            "published_to_redis": _route_agent.redis is not None,
+        }, status=status.HTTP_200_OK)
+
+
+# ===========================================================================
+# Risk Fusion Agent Bridge  (weighted fallback, no Bayesian model required)
+# ===========================================================================
+_risk_fusion_agent = None
+
+def _get_risk_fusion_agent():
+    """Lazily initialise the RiskFusionAgent."""
+    global _risk_fusion_agent
+    if _risk_fusion_agent is None:
+        from surveillance.agents.risk_fusion_agent import RiskFusionAgent
+        import os, redis.asyncio as aioredis
+        agent = RiskFusionAgent()
+        agent.running = True
+        try:
+            async def _connect():
+                r = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+                await r.ping()
+                agent.redis = r
+            asyncio.run(_connect())
+        except Exception:
+            agent.redis = None
+        _risk_fusion_agent = agent
+    return _risk_fusion_agent
+
+
+class RiskFusionView(views.APIView):
+    """
+    HTTP bridge into the RiskFusionAgent (weighted or Bayesian fusion).
+
+    POST /api/agents/risk-fusion/
+    Body: {
+        "trip_id": "<uuid>",
+        "truck_id": "TRK-001",
+        "behaviour": { "anomaly_score": 0.75, "loitering_detected": true },
+        "twin":      { "deviation_score": 0.5, "door_state": "OPEN", "driver_rfid_scanned": false },
+        "route":     { "route_risk_score": 0.3, "in_safe_corridor": true, "in_high_risk_zone": false }
+    }
+    """
+    def post(self, request):
+        import uuid as _uuid
+
+        trip_id = request.data.get('trip_id')
+        if not trip_id:
+            return Response({"error": "trip_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            trip = Trip.objects.get(trip_id=trip_id)
+        except Trip.DoesNotExist:
+            return Response({"error": "Trip not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        signals = {
+            "behaviour": request.data.get("behaviour", {}),
+            "twin":      request.data.get("twin", {}),
+            "route":     request.data.get("route", {}),
+        }
+        data_ages = {"behaviour": 0.0, "twin": 0.0, "route": 0.0, "temporal": 0.0}
+
+        try:
+            agent = _get_risk_fusion_agent()
+            score, confidence, method = asyncio.run(agent._weighted_fusion(signals, data_ages))
+            triggered = agent._get_triggered_rules(signals, score)
+            risk_level = agent._classify_risk_level(score)
+        except Exception as e:
+            return Response({"error": f"RiskFusionAgent error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Publish to rakshak.risk.output for DecisionAgent
+        if _risk_fusion_agent and _risk_fusion_agent.redis:
+            try:
+                incident_id = str(_uuid.uuid4())
+                pub_payload = {
+                    "truck_id": request.data.get("truck_id", "TRK-001"),
+                    "timestamp": __import__('datetime').datetime.now().isoformat(),
+                    "incident_id": incident_id,
+                    "composite_risk_score": score,
+                    "risk_level": risk_level,
+                    "confidence": confidence,
+                    "component_scores": {
+                        "behaviour": signals["behaviour"].get("anomaly_score", 0.0),
+                        "twin": signals["twin"].get("deviation_score", 0.0),
+                        "route": signals["route"].get("route_risk_score", 0.0),
+                        "temporal": agent._get_temporal_score(),
+                    },
+                    "triggered_rules": triggered,
+                    "fusion_method": method,
+                }
+                asyncio.run(_risk_fusion_agent.redis.publish(
+                    _risk_fusion_agent.output_channel, json.dumps(pub_payload)
+                ))
+                # Also write scored key with TTL
+                asyncio.run(_risk_fusion_agent.redis.setex(
+                    f"risk_score:{request.data.get('truck_id', 'TRK-001')}", 60, str(score)
+                ))
+            except Exception:
+                pass
+
+        # Update trip's current risk
+        risk_pct = round(score * 100, 2)
+        trip.current_calculated_risk = risk_pct
+        if risk_level in ("HIGH", "CRITICAL") and trip.status not in ('Alert', 'Completed'):
+            trip.status = 'Alert'
+        trip.save()
+
+        return Response({
+            "composite_risk_score": score,
+            "risk_level": risk_level,
+            "confidence": confidence,
+            "fusion_method": method,
+            "triggered_rules": triggered,
+            "trip_risk_updated_to": risk_pct,
+            "published_to_redis": _risk_fusion_agent.redis is not None,
+        }, status=status.HTTP_200_OK)
+
+
+# ===========================================================================
+# Explainability Agent Bridge  (template / OpenAI / Ollama)
+# ===========================================================================
+class ExplainabilityView(views.APIView):
+    """
+    HTTP bridge into the ExplainabilityAgent.
+
+    POST /api/agents/explain/
+    Body: {
+        "trip_id": "<uuid>",
+        "incident_id": "<uuid>",
+        "risk_payload":      { ...RiskOutput... },    # from RiskFusionView
+        "decision_payload":  { ...DecisionOutput... } # from DecisionView
+    }
+    """
+    def post(self, request):
+        from surveillance.agents.explainability_agent import ExplainabilityAgent
+        import time as _time
+
+        trip_id = request.data.get('trip_id')
+        if not trip_id:
+            return Response({"error": "trip_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            trip = Trip.objects.get(trip_id=trip_id)
+        except Trip.DoesNotExist:
+            return Response({"error": "Trip not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        risk_payload     = request.data.get("risk_payload", {})
+        decision_payload = request.data.get("decision_payload", {})
+        incident_id      = request.data.get("incident_id", str(uuid.uuid4()))
+
+        try:
+            agent = ExplainabilityAgent()
+            asyncio.run(agent.start())
+            t0 = _time.time()
+            explanation_text, model_used = asyncio.run(
+                agent._generate_explanation(decision_payload, risk_payload)
+            )
+            gen_ms = (_time.time() - t0) * 1000
+        except Exception as e:
+            return Response({"error": f"ExplainabilityAgent error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Save explanation to the most recent Alert's ai_explanation field for this trip
+        latest_alert = Alert.objects.filter(trip=trip).order_by('-timestamp').first()
+        if latest_alert:
+            latest_alert.ai_explanation = explanation_text
+            latest_alert.save()
+
+        return Response({
+            "incident_id": incident_id,
+            "explanation_text": explanation_text,
+            "llm_model_used": model_used,
+            "generation_time_ms": round(gen_ms, 2),
+            "saved_to_alert": str(latest_alert.alert_id) if latest_alert else None,
+        }, status=status.HTTP_200_OK)
