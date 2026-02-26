@@ -139,12 +139,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
-    ],
+    # No global throttle — agents need high call volume for simulation.
+    # Add per-view throttling on public endpoints only if required.
+    'DEFAULT_THROTTLE_CLASSES': [],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '200/min',
-        'user': '1000/day'
+        'user': '10000/hour',
     }
 }
