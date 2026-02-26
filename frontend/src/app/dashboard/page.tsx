@@ -349,8 +349,8 @@ export default function Dashboard() {
                                 <th>ROUTE VECTOR</th>
                                 <th>CARGO YIELD</th>
                                 <th>AI RISK SCORE</th>
-                                <th>LAST PING</th> {/* D1 */}
-                                <th>ACTION</th> {/* D6 */}
+                                <th>LAST PING</th>
+                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -380,8 +380,7 @@ export default function Dashboard() {
                                                 <span className={styles.riskBarText}>{vehicle.risk.score}/100</span>
                                             </div>
                                         </td>
-                                        <td className={styles.colPing}>{pingLabel}</td> {/* D1 */}
-                                        {/* D6: View Details */}
+                                        <td className={styles.colPing}>{pingLabel}</td>
                                         <td>
                                             <Link href="/alerts" className={styles.viewDetailsBtn} aria-label={`View details for ${vehicle.info.id}`}>
                                                 Details →
