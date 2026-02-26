@@ -92,40 +92,47 @@ class RouteAgent:
         self.logger.info(f"Route agent started with {len(self.safe_corridors)} corridors and {len(self.risk_zones)} risk zones")
 
     async def _load_default_geometry(self):
-        """Load default safe corridors and risk zones"""
-        # Default safe corridor: Delhi highway corridor
-        delhi_corridor_coords = [
-            (77.1025, 28.7041),  # North Delhi
-            (77.2090, 28.6139),  # Central Delhi
-            (77.3000, 28.5000),  # South Delhi
-            (77.4000, 28.4000),  # Faridabad approach
-            (77.5000, 28.3000),  # NH2 route
-            (77.4000, 28.2000),
-            (77.3000, 28.3000),
-            (77.2000, 28.4000),
-            (77.1000, 28.5000),
-            (77.0000, 28.6000),
-            (77.1025, 28.7041)   # Close polygon
+        """Load default safe corridors covering all major Indian logistics routes."""
+
+        # Each corridor is a ±0.5° wide polygon centred on the route waypoints
+        def _corridor_polygon(waypoints, width=0.5):
+            """Build a rough envelope polygon around a list of (lat,lon) points."""
+            lats = [p[0] for p in waypoints]
+            lons = [p[1] for p in waypoints]
+            min_lat, max_lat = min(lats) - width, max(lats) + width
+            min_lon, max_lon = min(lons) - width, max(lons) + width
+            return Polygon([
+                (min_lon, min_lat), (max_lon, min_lat),
+                (max_lon, max_lat), (min_lon, max_lat),
+                (min_lon, min_lat),
+            ])
+
+        ROUTES = [
+            ("NH-48 Delhi–Jaipur",       [(28.61,77.21),(28.41,76.99),(28.08,76.77),(27.54,76.20),(26.91,75.79)]),
+            ("NH-48 Mumbai–Pune",         [(19.08,72.88),(18.97,73.12),(18.87,73.32),(18.52,73.86)]),
+            ("NH-44 Bangalore–Chennai",   [(12.97,77.60),(12.70,77.90),(12.45,78.25),(12.20,78.55),(13.08,80.27)]),
+            ("NH-16 Kolkata–Bhubaneswar", [(22.57,88.36),(22.20,88.15),(21.90,87.70),(21.47,86.92),(20.30,85.82)]),
+            ("NH-44 Hyderabad–Nagpur",    [(17.39,78.49),(17.80,78.80),(18.44,79.13),(18.90,79.55),(21.15,79.09)]),
         ]
-        
-        # Default risk zone: Narela industrial area
-        narela_risk_coords = [
-            (77.0800, 28.8500),
-            (77.1200, 28.8500),
-            (77.1200, 28.8800),
-            (77.0800, 28.8800),
-            (77.0800, 28.8500)
+
+        self.safe_corridors = [
+            {"name": name, "polygon": _corridor_polygon(wps)}
+            for name, wps in ROUTES
         ]
-        
-        self.safe_corridors = [{
-            "name": "Delhi Highway Corridor",
-            "polygon": Polygon(delhi_corridor_coords)
-        }]
-        
-        self.risk_zones = [{
-            "name": "Narela Industrial Zone",
-            "polygon": Polygon(narela_risk_coords)
-        }]
+
+        # Risk zones: known high-theft areas on these corridors
+        risk_zone_defs = [
+            ("Narela Industrial Area",    [(77.08,28.85),(77.12,28.85),(77.12,28.88),(77.08,28.88),(77.08,28.85)]),
+            ("Tughlakabad Zone",          [(77.28,28.45),(77.35,28.45),(77.35,28.52),(77.28,28.52),(77.28,28.45)]),
+            ("Khopoli High-Risk Stretch", [(73.05,18.90),(73.20,18.90),(73.20,19.00),(73.05,19.00),(73.05,18.90)]),
+            ("Hosur Corridor Zone",       [(77.85,12.65),(77.95,12.65),(77.95,12.75),(77.85,12.75),(77.85,12.65)]),
+            ("Mecheda NH-16 Stretch",     [(87.60,21.80),(87.80,21.80),(87.80,21.95),(87.60,21.95),(87.60,21.80)]),
+        ]
+        self.risk_zones = [
+            {"name": name, "polygon": Polygon(coords)}
+            for name, coords in risk_zone_defs
+        ]
+
 
     async def stop(self):
         """Stop the route agent"""
