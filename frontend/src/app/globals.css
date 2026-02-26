@@ -1,20 +1,38 @@
 :root {
   /* Logo colors */
-  --color-logo-blue: #1b63a2;
-  --color-logo-green: #6bc24b;
-  --color-logo-dark-blue: #0f4675;
+  --color-logo-blue: #0284c7;
+  /* deeper blue for contrast */
+  --color-logo-green: #059669;
+  /* emerald for contrast */
+  --color-logo-dark-blue: #0c4a6e;
 
-  /* Theme variables based on Logo */
+  /* Light Theme Dashboard Variables */
   --color-bg-main: #f8fafc;
-  --color-bg-card: #ffffff;
+  /* Very light slate */
+  --color-bg-card: rgba(255, 255, 255, 0.75);
+  /* Frosted white */
   --color-bg-nav: rgba(255, 255, 255, 0.95);
+
   --color-text-main: #0f172a;
+  /* Darkest slate for readability */
   --color-text-muted: #64748b;
-  --color-risk-low: var(--color-logo-green);
-  --color-risk-medium: #d97706;
-  --color-risk-high: #dc2626;
-  --color-accent: var(--color-logo-blue);
-  --color-border: #e2e8f0;
+
+  --color-risk-low: #10b981;
+  /* Emerald */
+  --color-risk-medium: #f59e0b;
+  /* Amber */
+  --color-risk-high: #ef4444;
+  /* Red */
+
+  --color-accent: #0ea5e9;
+  /* Bright Sky blue */
+  --color-border: rgba(148, 163, 184, 0.25);
+  /* Light slate border */
+
+  /* Additional Bright Glow utilities */
+  --glow-accent: 0 4px 15px rgba(14, 165, 233, 0.25);
+  --glow-risk-high: 0 4px 15px rgba(239, 68, 68, 0.3);
+  --glow-risk-low: 0 4px 15px rgba(16, 185, 129, 0.2);
 }
 
 * {
@@ -26,13 +44,13 @@
 body {
   background-color: var(--color-bg-main);
   color: var(--color-text-main);
-  font-family: inherit;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
 }
 
-/* Ambient Mesh Gradient Background */
+/* Ambient Clean Light Mesh Gradient */
 body::before {
   content: "";
   position: fixed;
@@ -42,10 +60,29 @@ body::before {
   height: 100vh;
   z-index: -1;
   background:
-    radial-gradient(circle at 10% 10%, rgba(27, 99, 162, 0.04) 0%, transparent 40%),
-    radial-gradient(circle at 90% 90%, rgba(107, 194, 75, 0.04) 0%, transparent 40%),
-    radial-gradient(circle at 80% 20%, rgba(15, 70, 117, 0.02) 0%, transparent 30%);
+    radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(239, 68, 68, 0.02) 0%, transparent 40%);
   pointer-events: none;
+}
+
+/* Base light scrollbars for webkit */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 1);
 }
 
 a {
