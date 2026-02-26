@@ -1,0 +1,470 @@
+/* Fleet Registry Page */
+
+.page {
+    min-height: 100vh;
+    background: #050508;
+    color: #e2e8f0;
+    padding: 100px 32px 60px;
+    font-family: var(--font-inter, 'Inter', sans-serif);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ─── Header ─────────────────────────────────────────────── */
+.header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+}
+
+.headerLeft {}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: rgba(148, 163, 184, 0.6);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.title {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 6px;
+}
+
+.subtitle {
+    font-size: 0.88rem;
+    color: rgba(148, 163, 184, 0.7);
+    margin: 0;
+}
+
+.emptyHint {
+    color: #f59e0b;
+    font-style: italic;
+}
+
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.searchInput {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 9px 14px;
+    color: #e2e8f0;
+    font-size: 0.88rem;
+    width: 240px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.searchInput:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.searchInput::placeholder {
+    color: rgba(148, 163, 184, 0.4);
+}
+
+.refreshBtn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.refreshBtn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.refreshBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ─── Tabs ───────────────────────────────────────────────── */
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    padding-bottom: 0;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: rgba(148, 163, 184, 0.6);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+}
+
+.tab:hover {
+    color: #94a3b8;
+}
+
+.tabActive {
+    color: #818cf8;
+    border-bottom-color: #818cf8;
+}
+
+.tabCount {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+}
+
+/* ─── Loader ─────────────────────────────────────────────── */
+.loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 80px;
+    color: rgba(148, 163, 184, 0.5);
+    font-size: 0.9rem;
+}
+
+.loaderRing {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* ─── Empty State ────────────────────────────────────────── */
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 80px;
+    color: rgba(148, 163, 184, 0.4);
+    text-align: center;
+}
+
+.empty h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: rgba(226, 232, 240, 0.5);
+}
+
+.empty p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.empty a {
+    color: #818cf8;
+}
+
+/* ─── Trucks Grid ────────────────────────────────────────── */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.06);
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.plateTag {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: #e2e8f0;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    padding: 4px 12px;
+    border-radius: 8px;
+}
+
+.statusChip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.chipActive {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.chipInactive {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+    border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.cardRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.rowIcon {
+    color: #6366f1;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.rowLabel {
+    font-size: 0.7rem;
+    color: rgba(148, 163, 184, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.rowValue {
+    font-size: 0.88rem;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.sensorId {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: rgba(99, 102, 241, 0.6);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: rgba(99, 102, 241, 0.05);
+    border-radius: 6px;
+    width: fit-content;
+}
+
+/* ─── Filter bar ─────────────────────────────────────────── */
+.filterBar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.filterChip {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: transparent;
+    color: rgba(148, 163, 184, 0.6);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.filterChip:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+}
+
+.filterChipActive {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* ─── Trip Table ─────────────────────────────────────────── */
+.tripTable {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tripTableHeader {
+    display: grid;
+    grid-template-columns: 1.5fr 2fr 1fr 1fr 1fr;
+    gap: 12px;
+    padding: 10px 16px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(148, 163, 184, 0.4);
+}
+
+.tripRow {
+    display: grid;
+    grid-template-columns: 1.5fr 2fr 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    transition: all 0.15s;
+}
+
+.tripRow:hover {
+    background: rgba(99, 102, 241, 0.05);
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+.tripTruck {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tripPlate {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.tripDriver {
+    font-size: 0.78rem;
+    color: rgba(148, 163, 184, 0.7);
+}
+
+.tripCargo {
+    font-size: 0.72rem;
+    color: rgba(148, 163, 184, 0.4);
+}
+
+.tripRoute {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.82rem;
+    color: #94a3b8;
+    flex-wrap: wrap;
+}
+
+.routeArrow {
+    color: rgba(148, 163, 184, 0.3);
+    flex-shrink: 0;
+}
+
+.statusPill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.riskCell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.riskBar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.riskFill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s;
+}
+
+.tripTime {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: rgba(148, 163, 184, 0.5);
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .page {
+        padding: 90px 16px 40px;
+    }
+
+    .tripTableHeader {
+        display: none;
+    }
+
+    .tripRow {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .headerRight {
+        width: 100%;
+    }
+
+    .searchInput {
+        width: 100%;
+        flex: 1;
+    }
+}

@@ -584,3 +584,120 @@ export async function pushGPSLog(tripId: string, lat: number, lng: number, speed
     }
 }
 
+// ─── TRUCKS (full DB detail) ─────────────────────────────────────────────────
+
+export interface TruckRecord {
+    truck_id: string;
+    license_plate: string | null;
+    driver_name: string;
+    driver_phone: string | null;
+    driver_email: string | null;
+    cargo_type: string;
+    cargo_value: number;
+    vehicle_make_model: string | null;
+    iot_sensor_id: string | null;
+    active: boolean;
+    company: { company_id: string; name: string; city: string | null } | null;
+    created_at: string;
+}
+
+export async function getTrucks(): Promise<TruckRecord[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/trucks/`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('trucks fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Trucks API unavailable — returning empty list.', e);
+        return [];
+    }
+}
+
+// ─── TRIPS (full DB detail) ──────────────────────────────────────────────────
+
+export interface TripRecord {
+    trip_id: string;
+    truck: {
+        truck_id: string;
+        license_plate: string | null;
+        driver_name: string;
+        cargo_type: string;
+        cargo_value: number;
+    };
+    start_location_name: string;
+    destination_name: string;
+    start_time: string;
+    estimated_arrival: string | null;
+    status: string;
+    current_calculated_risk: number;
+    baseline_route_risk: number;
+}
+
+export async function getTrips(): Promise<TripRecord[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/trips/`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('trips fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Trips API unavailable — returning empty list.', e);
+        return [];
+    }
+}
+
+// ─── TRIP DASHBOARD (single trip detail) ─────────────────────────────────────
+
+export interface TripDashboard {
+    trip_id: string;
+    status: string;
+    current_risk_score: number;
+    latest_location: { latitude: number; longitude: number; speed_kmh: number; timestamp: string } | null;
+    recent_alerts: Array<{ alert_id: string; type: string; severity: string; risk_score: number; description: string; timestamp: string }>;
+    total_alerts: number;
+    alert_counts: { Critical: number; High: number; Medium: number; Low: number };
+}
+
+export async function getTripDashboard(tripId: string): Promise<TripDashboard | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/trips/${tripId}/dashboard/`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('trip dashboard fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Trip dashboard unavailable.', e);
+        return null;
+    }
+}
+
+// ─── RESOLVE ALERT ────────────────────────────────────────────────────────────
+
+export async function resolveAlert(alertId: string): Promise<boolean> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/alerts/${alertId}/resolve/`, {
+            method: 'POST',
+            headers: authHeaders(),
+        });
+        return res.ok;
+    } catch {
+        return false;
+    }
+}
+
+// ─── COMPANY STATS ────────────────────────────────────────────────────────────
+
+export interface CompanyStats {
+    total_trucks: number;
+    active_trips: number;
+    critical_alerts: number;
+    high_alerts: number;
+    total_cargo_value: number;
+    avg_risk_score: number;
+}
+
+export async function getCompanyStats(companyId: string): Promise<CompanyStats | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/companies/${companyId}/stats/`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('stats fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Company stats unavailable.', e);
+        return null;
+    }
+}

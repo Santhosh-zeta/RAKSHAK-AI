@@ -40,6 +40,7 @@ export default function Navbar() {
     const navLinks = [
         { href: '/', label: 'Home' },
         { href: '/dashboard', label: 'Dashboard' },
+        { href: '/fleet', label: 'Fleet' },
         { href: '/live-monitoring', label: 'Journey Report' },
         { href: '/risk-analysis', label: 'Risk Analysis' },
         { href: '/alerts', label: 'Alerts' },
