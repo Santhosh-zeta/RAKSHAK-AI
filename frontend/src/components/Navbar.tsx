@@ -39,6 +39,7 @@ export default function Navbar() {
 
     const navLinks = [
         { href: '/', label: 'Home' },
+        ...(user?.role === 'admin' ? [{ href: '/admin', label: 'Admin Panel' }] : []),
         { href: '/dashboard', label: 'Dashboard' },
         { href: '/fleet', label: 'Fleet' },
         { href: '/live-monitoring', label: 'Journey Report' },

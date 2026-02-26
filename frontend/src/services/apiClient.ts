@@ -701,3 +701,27 @@ export async function getCompanyStats(companyId: string): Promise<CompanyStats |
         return null;
     }
 }
+
+// ─── ADMIN FUNCTIONS ─────────────────────────────────────────────────────────
+
+export interface CompanyRecord {
+    company_id: string;
+    name: string;
+    city: string | null;
+    country: string;
+    active: boolean;
+    active_trucks: number;
+    active_trips: number;
+    joined_date: string;
+}
+
+export async function getCompanies(): Promise<CompanyRecord[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/companies/`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('companies fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Companies API unavailable.', e);
+        return [];
+    }
+}
