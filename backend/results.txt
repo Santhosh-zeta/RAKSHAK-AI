@@ -1,10 +1,16 @@
 
---- Checking behavior_model.pkl ---
-Successfully loaded using joblib.
-Type: dict
+--- Checking behavior_model (behavior_model.pkl) ---
+Loaded OK  — type: dict
+Dict keys: ['model_type', 'version', 'agent', 'pipeline', 'feature_names', 'n_features', 'hyperparameters', 'thresholds', 'training_info', 'scoring_note']
+  pipeline: Pipeline, n_features=11
+  pipeline smoke-test OK: score=0.0290
 
---- Checking risk_model.pkl ---
-Failed to load: Can't get attribute 'bn_query' on <module '__main__' from 'C:\\Users\\santh\\OneDrive - vit.ac.in\\Desktop\\XXX\\RAKSHAK-AI\\backend\\check_models.py'>
+--- Checking risk_model (risk_model.pkl) ---
+Loaded OK  — type: DiscreteBayesianNetwork
+BN nodes: ['BehaviourRisk', 'TheftRisk', 'TwinDeviation', 'RouteCompliance', 'TimeOfDay']
 
---- Checking route_model.pkl ---
-Failed to load: Can't get attribute 'check_geofence' on <module '__main__' from 'C:\\Users\\santh\\OneDrive - vit.ac.in\\Desktop\\XXX\\RAKSHAK-AI\\backend\\check_models.py'>
+--- Checking route_model (route_model.pkl) ---
+Loaded OK  — type: dict
+Dict keys: ['safe_corridors', 'risk_zones']
+  safe_corridors: 914
+  risk_zones:     39262

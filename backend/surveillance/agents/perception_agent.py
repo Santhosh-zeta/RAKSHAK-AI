@@ -133,14 +133,14 @@ class PerceptionAgent:
                     if class_name in ['person', 'car', 'truck', 'bus', 'motorcycle']:
                         detections.append(([x1, y1, x2, y2], confidence, class_name))
         
-        # Update tracker
-        self.tracker.update_tracks(detections, frame=frame)
+        # Update tracker — deep_sort_realtime returns tracks directly
+        active_tracks = self.tracker.update_tracks(detections, frame=frame)
         
         tracks = []
         current_time = time.time()
         
         # Process confirmed tracks
-        for track in self.tracker.tracks:
+        for track in active_tracks:
             if not track.is_confirmed():
                 continue
                 

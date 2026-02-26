@@ -8,6 +8,26 @@ import uuid
 import base64
 import json
 
+
+def run_async(coro):
+    """
+    Run an async coroutine safely from sync Django views.
+
+    run_async() closes the event loop after every call.  If agent Redis
+    connections were created inside an earlier loop they become unusable in
+    the next call.  This helper always spins a *brand-new* event loop so
+    each request is fully self-contained and there is no cross-loop leakage.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        loop.close()
+
 # ===========================================================================
 # Behaviour Agent Bridge
 # ===========================================================================
@@ -19,7 +39,7 @@ def _get_behaviour_agent():
     if _behaviour_agent is None:
         from surveillance.agents.behavior_agent import BehaviourAgent
         agent = BehaviourAgent()
-        asyncio.run(agent.start())
+        run_async(agent.start())
         _behaviour_agent = agent
     return _behaviour_agent
 
@@ -53,7 +73,7 @@ def _get_perception_agent():
                 r = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
                 await r.ping()
                 agent.redis = r
-            asyncio.run(_connect())
+            run_async(_connect())
         except Exception:
             agent.redis = None  # Redis down — still works, just won't publish
 
@@ -66,32 +86,20 @@ def _get_perception_agent():
 _decision_agent = None
 
 def _get_decision_agent():
-    """Lazily initialise the DecisionAgent (Redis optional — falls back to no cooldown)."""
+    """
+    Lazily initialise the DecisionAgent (Redis optional).
+
+    Because run_async() creates a fresh event loop on every HTTP request, any
+    asyncio Redis client stored on the agent from a previous call is bound to
+    a now-closed loop.  We solve this by reconnecting Redis inside every
+    _evaluate_rules call using a fresh client that lives only for that call.
+    """
     global _decision_agent
     if _decision_agent is None:
         from surveillance.agents.decision_agent import DecisionAgent
         agent = DecisionAgent()
-        # Manually do what start() does without requiring Redis to be up
         agent.running = True
-        try:
-            import redis.asyncio as aioredis
-            async def _try_connect():
-                agent.redis = aioredis.from_url(agent.redis_url)
-                # Ping to test connection
-                await agent.redis.ping()
-            asyncio.run(_try_connect())
-        except Exception:
-            agent.redis = None   # Redis not available — works fine
-
-        # Patch cooldown + logging to be no-ops when Redis is unavailable
-        if agent.redis is None:
-            async def _no_cooldown(*args, **kwargs): return False
-            async def _no_set_cooldown(*args, **kwargs): pass
-            async def _no_log(*args, **kwargs): pass
-            agent._is_on_cooldown = _no_cooldown
-            agent._set_cooldown   = _no_set_cooldown
-            agent._log_incident   = _no_log
-
+        agent.redis = None
         _decision_agent = agent
     return _decision_agent
 
@@ -160,7 +168,7 @@ class PerceptionView(views.APIView):
         # Publish to Redis so BehaviourAgent gets it in real-time
         if agent.redis:
             try:
-                asyncio.run(agent.redis.publish(
+                run_async(agent.redis.publish(
                     agent.output_channel,
                     json.dumps(perception_out)
                 ))
@@ -249,10 +257,41 @@ class DecisionView(views.APIView):
             return Response({"error": "composite_risk_score must be between 0.0 and 1.0"},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Run the agent's rule engine
+        # Run the agent's rule engine with a fresh Redis connection per request
         try:
+            import redis.asyncio as aioredis, os as _os
             agent = _get_decision_agent()
-            output = asyncio.run(agent._evaluate_rules(risk_input))
+
+            async def _run_decision():
+                # Reconnect Redis in this event loop so the client is always
+                # bound to the loop that run_async() created for this request.
+                try:
+                    r = aioredis.from_url(_os.getenv("REDIS_URL", "redis://localhost:6379"))
+                    await r.ping()
+                    agent.redis = r
+                    from surveillance.agents.decision_agent import DecisionAgent as _DA
+                    agent._is_on_cooldown = _DA._is_on_cooldown.__get__(agent)
+                    agent._set_cooldown   = _DA._set_cooldown.__get__(agent)
+                    agent._log_incident   = _DA._log_incident.__get__(agent)
+                except Exception:
+                    agent.redis = None
+                    async def _no_cooldown(*a, **kw): return False
+                    async def _no_set_cooldown(*a, **kw): pass
+                    async def _no_log(*a, **kw): pass
+                    agent._is_on_cooldown = _no_cooldown
+                    agent._set_cooldown   = _no_set_cooldown
+                    agent._log_incident   = _no_log
+                try:
+                    return await agent._evaluate_rules(risk_input)
+                finally:
+                    if agent.redis:
+                        try:
+                            await agent.redis.aclose()
+                        except Exception:
+                            pass
+                        agent.redis = None
+
+            output = run_async(_run_decision())
         except Exception as e:
             return Response({"error": f"DecisionAgent error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -329,7 +368,7 @@ class BehaviourAnalysisView(views.APIView):
         try:
             agent = _get_behaviour_agent()
             payload = {"truck_id": truck_id, "tracks": tracks}
-            output = asyncio.run(agent._process_perception_output(payload))
+            output = run_async(agent._process_perception_output(payload))
         except Exception as e:
             return Response({"error": f"BehaviourAgent error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -535,7 +574,7 @@ def _get_digital_twin_agent():
                 await r.ping()
                 agent.redis = r
                 await agent.start()  # loads baselines from Redis
-            asyncio.run(_connect())
+            run_async(_connect())
         except Exception:
             agent.redis = None
             # Patch baseline lookup to return default when Redis absent
@@ -597,8 +636,8 @@ class DigitalTwinView(views.APIView):
 
         try:
             agent = _get_digital_twin_agent()
-            baseline = asyncio.run(agent._get_baseline(telemetry.truck_id))
-            deviations, deviation_score = asyncio.run(agent._detect_deviations(telemetry, baseline))
+            baseline = run_async(agent._get_baseline(telemetry.truck_id))
+            deviations, deviation_score = run_async(agent._detect_deviations(telemetry, baseline))
             twin_status = agent._classify_status(deviation_score)
         except Exception as e:
             return Response({"error": f"DigitalTwinAgent error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -619,7 +658,7 @@ class DigitalTwinView(views.APIView):
                     "twin_status": twin_status,
                     "iot_signal_fresh": True,
                 }
-                asyncio.run(_digital_twin_agent.redis.publish(
+                run_async(_digital_twin_agent.redis.publish(
                     _digital_twin_agent.output_channel, json.dumps(payload)
                 ))
             except Exception:
@@ -664,14 +703,14 @@ def _get_route_agent():
         agent = RouteAgent()
         agent.running = True
         # Load corridors (default geometry if model not present)
-        asyncio.run(agent._load_default_geometry())
+        run_async(agent._load_default_geometry())
         # Redis (optional)
         try:
             async def _connect():
                 r = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
                 await r.ping()
                 agent.redis = r
-            asyncio.run(_connect())
+            run_async(_connect())
         except Exception:
             agent.redis = None
         _route_agent = agent
@@ -732,7 +771,7 @@ class RouteView(views.APIView):
                     "time_multiplier": multiplier,
                     "nearest_corridor_name": corridor_name,
                 }
-                asyncio.run(_route_agent.redis.publish(
+                run_async(_route_agent.redis.publish(
                     _route_agent.output_channel, json.dumps(payload)
                 ))
             except Exception:
@@ -787,7 +826,7 @@ def _get_risk_fusion_agent():
                 r = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
                 await r.ping()
                 agent.redis = r
-            asyncio.run(_connect())
+            run_async(_connect())
         except Exception:
             agent.redis = None
         _risk_fusion_agent = agent
@@ -827,7 +866,7 @@ class RiskFusionView(views.APIView):
 
         try:
             agent = _get_risk_fusion_agent()
-            score, confidence, method = asyncio.run(agent._weighted_fusion(signals, data_ages))
+            score, confidence, method = run_async(agent._weighted_fusion(signals, data_ages))
             triggered = agent._get_triggered_rules(signals, score)
             risk_level = agent._classify_risk_level(score)
         except Exception as e:
@@ -853,11 +892,11 @@ class RiskFusionView(views.APIView):
                     "triggered_rules": triggered,
                     "fusion_method": method,
                 }
-                asyncio.run(_risk_fusion_agent.redis.publish(
+                run_async(_risk_fusion_agent.redis.publish(
                     _risk_fusion_agent.output_channel, json.dumps(pub_payload)
                 ))
                 # Also write scored key with TTL
-                asyncio.run(_risk_fusion_agent.redis.setex(
+                run_async(_risk_fusion_agent.redis.setex(
                     f"risk_score:{request.data.get('truck_id', 'TRK-001')}", 60, str(score)
                 ))
             except Exception:
@@ -913,10 +952,11 @@ class ExplainabilityView(views.APIView):
         incident_id      = request.data.get("incident_id", str(uuid.uuid4()))
 
         try:
+            # Initialise agent without Redis (template/OpenAI provider needs no Redis)
             agent = ExplainabilityAgent()
-            asyncio.run(agent.start())
+            agent.running = True   # skip full start() to avoid Redis connection attempt
             t0 = _time.time()
-            explanation_text, model_used = asyncio.run(
+            explanation_text, model_used = run_async(
                 agent._generate_explanation(decision_payload, risk_payload)
             )
             gen_ms = (_time.time() - t0) * 1000

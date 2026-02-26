@@ -93,34 +93,35 @@ class DigitalTwinAgent:
         # Check in-memory cache first
         if truck_id in self._twin_states and "baseline" in self._twin_states[truck_id]:
             return self._twin_states[truck_id]["baseline"]
-        
-        # Try to get from Redis
-        try:
-            key = f"twin_baseline:{truck_id}"
-            baseline_data = await self.redis.get(key)
-            if baseline_data:
-                baseline = json.loads(baseline_data)
-                # Cache in memory
-                if truck_id not in self._twin_states:
-                    self._twin_states[truck_id] = {}
-                self._twin_states[truck_id]["baseline"] = baseline
-                return baseline
-        except Exception as e:
-            self.logger.warning(f"Error loading baseline for {truck_id}", error=str(e))
-        
-        # Return default baseline
+
+        # Try to get from Redis (only if Redis is connected)
+        if self.redis is not None:
+            try:
+                key = f"twin_baseline:{truck_id}"
+                baseline_data = await self.redis.get(key)
+                if baseline_data:
+                    baseline = json.loads(baseline_data)
+                    # Cache in memory
+                    if truck_id not in self._twin_states:
+                        self._twin_states[truck_id] = {}
+                    self._twin_states[truck_id]["baseline"] = baseline
+                    return baseline
+            except Exception as e:
+                self.logger.warning(f"Error loading baseline for {truck_id}", error=str(e))
+
+        # Default baseline (used when Redis is unavailable or no key exists)
         default_baseline = {
             "expected_weight_kg": 2000.0,
             "expected_door_state": "CLOSED",
             "planned_route_center": {"lat": 28.6139, "lon": 77.2090},
             "max_deviation_km": 0.5
         }
-        
-        # Cache the default
+
+        # Cache the default in memory
         if truck_id not in self._twin_states:
             self._twin_states[truck_id] = {}
         self._twin_states[truck_id]["baseline"] = default_baseline
-        
+
         return default_baseline
 
     def _compute_gps_deviation_km(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:

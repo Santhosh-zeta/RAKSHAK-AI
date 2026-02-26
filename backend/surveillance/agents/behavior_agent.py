@@ -40,10 +40,11 @@ class BehaviourAgent:
         self.input_channel = "rakshak.perception.output"
         self.output_channel = "rakshak.behaviour.output"
         self.redis = None
-        self.model = None             # Isolation Forest
+        self.model = None             # sklearn Pipeline (scaler + IsolationForest)
+        self.model_meta = {}          # full dict from .pkl: feature_names, thresholds, etc.
         self.running = False
         self.loitering_threshold_s = 30.0
-        self.anomaly_threshold = 0.6  # scores above this trigger is_anomaly=True
+        self.anomaly_threshold = 0.6  # overridden by model thresholds['anomalous'] on load
         self.logger = structlog.get_logger().bind(agent="behaviour_agent")
 
     async def start(self):
@@ -52,9 +53,25 @@ class BehaviourAgent:
         self.redis = aioredis.from_url(self.redis_url)
         
         # Load model
+        # The .pkl is a metadata dict: {'pipeline': Pipeline, 'thresholds': {...}, ...}
+        # We must extract the Pipeline object, not use the dict directly.
         try:
-            self.model = joblib.load(self.model_path)
-            self.logger.info("Behaviour model loaded successfully")
+            model_data = joblib.load(self.model_path)
+            if isinstance(model_data, dict) and 'pipeline' in model_data:
+                self.model      = model_data['pipeline']   # sklearn Pipeline
+                self.model_meta = model_data
+                # Use the model's own anomaly threshold if available
+                thresholds = model_data.get('thresholds', {})
+                self.anomaly_threshold = thresholds.get('anomalous', self.anomaly_threshold)
+                self.logger.info(
+                    "Behaviour model loaded (pipeline extracted from dict)",
+                    n_features=model_data.get('n_features'),
+                    anomaly_threshold=self.anomaly_threshold
+                )
+            else:
+                # Legacy: plain sklearn estimator stored directly
+                self.model = model_data
+                self.logger.info("Behaviour model loaded (plain estimator)")
         except FileNotFoundError:
             self.logger.warning("Model not found, using heuristic fallback")
             self.model = None
@@ -73,22 +90,37 @@ class BehaviourAgent:
         self.logger.info("Behaviour agent stopped")
 
     def _build_features(self, track: dict) -> np.ndarray:
-        """Extract features from track for anomaly detection"""
-        # Extract track properties
+        """
+        Extract features from a perception track.
+
+        Must produce exactly 11 features matching the trained model's feature_names:
+          dwell_time, velocity_mean, velocity_std, direction_changes,
+          proximity_to_cargo_door, person_count_near_truck,
+          night_time_flag, driver_absent_flag, unusual_vehicle_flag,
+          time_since_last_authorized_scan, shift_hour
+        """
         dwell_seconds = track.get('dwell_seconds', 0.0)
         velocity = track.get('velocity', {'dx': 0.0, 'dy': 0.0})
         dx = velocity.get('dx', 0.0)
         dy = velocity.get('dy', 0.0)
         confidence = track.get('confidence', 0.0)
-        
-        # Compute derived features
-        velocity_magnitude = math.sqrt(dx**2 + dy**2)
-        is_near_door = 1.0 if dwell_seconds > 20 else 0.0
-        time_of_day_hour = float(datetime.now().hour)
-        
-        # Return feature vector
-        return np.array([[dwell_seconds, velocity_magnitude, confidence,
-                         is_near_door, time_of_day_hour]])
+        hour = float(datetime.now().hour)
+
+        velocity_mean             = math.sqrt(dx**2 + dy**2)
+        velocity_std              = 0.0   # single-frame snapshot; no history std
+        direction_changes         = 1.0   # assume 1 change per frame without full history
+        proximity_to_cargo_door   = 1.0 if dwell_seconds > 20 else 0.0
+        person_count_near_truck   = 1.0 if confidence > 0.5 else 0.0
+        night_time_flag           = 1.0 if (hour >= 22 or hour <= 5) else 0.0
+        driver_absent_flag        = 1.0 if dwell_seconds > 30 else 0.0
+        unusual_vehicle_flag      = 0.0   # requires class-name context; default safe
+        time_since_last_scan      = dwell_seconds   # best proxy available per-frame
+        shift_hour                = hour
+
+        return np.array([[dwell_seconds, velocity_mean, velocity_std, direction_changes,
+                          proximity_to_cargo_door, person_count_near_truck,
+                          night_time_flag, driver_absent_flag, unusual_vehicle_flag,
+                          time_since_last_scan, shift_hour]])
 
     def _heuristic_score(self, track: dict) -> float:
         """Simple rule-based scoring fallback when no model is available"""
