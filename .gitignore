@@ -1,0 +1,32 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Models
+*.pkl
+AI-models/
+ai_models/
+
+# Datasets
+*.csv
+CSV-data/
+
+# GIS Data
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+roads/
