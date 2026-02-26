@@ -145,8 +145,6 @@ export default function AuthPage() {
                         <button
                             className={`flex flex-1 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === 'register' ? 'bg-slate-50 text-sky-600 shadow border border-slate-200/60' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
                             onClick={() => { setMode('register'); setError(''); }}
-                            disabled
-                            title="Registration is disabled for this demo"
                         >
                             <Building2 size={16} /> Register
                         </button>
