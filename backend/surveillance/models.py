@@ -1,87 +1,199 @@
 from django.db import models
 import uuid
 
-class Truck(models.Model):
-    truck_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    driver_name = models.CharField(max_length=255)
-    driver_phone = models.CharField(max_length=50, blank=True, null=True)
-    license_plate = models.CharField(max_length=50, unique=True, null=True)
-    cargo_type = models.CharField(max_length=255)
-    cargo_value = models.DecimalField(max_digits=12, decimal_places=2)
-    iot_sensor_id = models.CharField(max_length=100, blank=True, null=True)
-    vehicle_make_model = models.CharField(max_length=255, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
+# ============================================================
+# Logistics Company & Control Area
+# ============================================================
+
+class LogisticsCompany(models.Model):
+    company_id    = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name          = models.CharField(max_length=255, unique=True)
+    registration_number = models.CharField(max_length=100, blank=True, null=True)
+    address       = models.TextField(blank=True, null=True)
+    city          = models.CharField(max_length=100, blank=True, null=True)
+    state         = models.CharField(max_length=100, blank=True, null=True)
+    country       = models.CharField(max_length=100, default="India")
+    website       = models.URLField(blank=True, null=True)
+
+    # Primary control area contacts (used by notification service)
+    control_email = models.EmailField(blank=True, null=True, help_text="Main control room email")
+    control_phone = models.CharField(max_length=20, blank=True, null=True,
+                                     help_text="Main control room phone (Twilio SMS)")
+
+    # Service agreement
+    active        = models.BooleanField(default=True)
+    joined_date   = models.DateField(auto_now_add=True)
+    created_at    = models.DateTimeField(auto_now_add=True)
+    updated_at    = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Logistics Company"
+        verbose_name_plural = "Logistics Companies"
+        ordering = ['name']
 
     def __str__(self):
-        return f"{self.license_plate or 'Unknown'} - {self.driver_name}"
+        return self.name
+
+    @property
+    def active_trucks(self):
+        return self.trucks.filter(active=True).count()
+
+    @property
+    def active_trips(self):
+        return self.trucks.prefetch_related('trips').filter(
+            trips__status__in=['Scheduled', 'In-Transit']
+        ).count()
+
+
+class ControlAreaContact(models.Model):
+    """Individual contacts within a logistics company's control room."""
+    contact_id   = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company      = models.ForeignKey(LogisticsCompany, on_delete=models.CASCADE,
+                                     related_name='contacts')
+    name         = models.CharField(max_length=255)
+    role         = models.CharField(max_length=100, blank=True, null=True,
+                                    help_text="e.g. Fleet Manager, Security Officer")
+    email        = models.EmailField(blank=True, null=True)
+    phone        = models.CharField(max_length=20, blank=True, null=True)
+    notify_email = models.BooleanField(default=True)
+    notify_sms   = models.BooleanField(default=True)
+    # Minimum severity to trigger notification: Low / Medium / High / Critical
+    min_severity = models.CharField(max_length=20, default='Medium',
+                                    choices=[('Low','Low'),('Medium','Medium'),
+                                             ('High','High'),('Critical','Critical')])
+    active       = models.BooleanField(default=True)
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.role}) @ {self.company.name}"
+
+
+# ============================================================
+# Truck
+# ============================================================
+
+class Truck(models.Model):
+    truck_id       = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company        = models.ForeignKey(LogisticsCompany, on_delete=models.SET_NULL,
+                                       null=True, blank=True, related_name='trucks')
+    driver_name    = models.CharField(max_length=255)
+    driver_phone   = models.CharField(max_length=50, blank=True, null=True)
+    driver_email   = models.EmailField(blank=True, null=True, help_text="Driver email for alert notifications")
+    license_plate  = models.CharField(max_length=50, unique=True, null=True)
+    cargo_type     = models.CharField(max_length=255)
+    cargo_value    = models.DecimalField(max_digits=12, decimal_places=2)
+    iot_sensor_id  = models.CharField(max_length=100, blank=True, null=True)
+    vehicle_make_model = models.CharField(max_length=255, blank=True, null=True)
+    active         = models.BooleanField(default=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['license_plate']
+
+    def __str__(self):
+        co = f" [{self.company.name}]" if self.company else ""
+        return f"{self.license_plate or 'Unknown'} - {self.driver_name}{co}"
+
+
+# ============================================================
+# Trip
+# ============================================================
 
 class Trip(models.Model):
-    trip_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    truck = models.ForeignKey(Truck, on_delete=models.CASCADE, related_name='trips')
-    start_location_name = models.CharField(max_length=255)
+    trip_id       = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    truck         = models.ForeignKey(Truck, on_delete=models.CASCADE, related_name='trips')
+    start_location_name   = models.CharField(max_length=255)
     start_location_coords = models.CharField(max_length=255, blank=True, null=True)
-    destination_name = models.CharField(max_length=255)
-    destination_coords = models.CharField(max_length=255, blank=True, null=True)
-    start_time = models.DateTimeField()
-    estimated_arrival = models.DateTimeField(null=True, blank=True)
-    
-    baseline_route_risk = models.FloatField(default=0.0)
+    destination_name      = models.CharField(max_length=255)
+    destination_coords    = models.CharField(max_length=255, blank=True, null=True)
+    start_time            = models.DateTimeField()
+    estimated_arrival     = models.DateTimeField(null=True, blank=True)
+
+    baseline_route_risk     = models.FloatField(default=0.0)
     current_calculated_risk = models.FloatField(default=0.0)
-    
+
     status_choices = [
-        ('Scheduled', 'Scheduled'),
+        ('Scheduled',  'Scheduled'),
         ('In-Transit', 'In-Transit'),
-        ('Completed', 'Completed'),
-        ('Alert', 'Alert'),
-        ('Cancelled', 'Cancelled')
+        ('Completed',  'Completed'),
+        ('Alert',      'Alert'),
+        ('Cancelled',  'Cancelled'),
     ]
     status = models.CharField(max_length=20, choices=status_choices, default='Scheduled')
 
+    class Meta:
+        ordering = ['-start_time']
+
     def __str__(self):
-        return f"Trip {self.trip_id} from {self.start_location_name} to {self.destination_name}"
+        return f"Trip {self.trip_id} | {self.start_location_name} → {self.destination_name}"
+
+
+# ============================================================
+# GPS Log
+# ============================================================
 
 class GPSLog(models.Model):
-    log_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='gps_logs')
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-    speed_kmh = models.FloatField(default=0.0)
-    heading = models.FloatField(default=0.0)
+    log_id      = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trip        = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='gps_logs')
+    latitude    = models.FloatField()
+    longitude   = models.FloatField()
+    speed_kmh   = models.FloatField(default=0.0)
+    heading     = models.FloatField(default=0.0)
     engine_status = models.BooleanField(default=True)
     door_sealed = models.BooleanField(default=True, null=True)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
 
     def __str__(self):
-        return f"Log for Trip {self.trip.trip_id} at {self.timestamp}"
+        return f"GPS log for Trip {self.trip.trip_id} @ {self.timestamp}"
+
+
+# ============================================================
+# Alert
+# ============================================================
 
 class Alert(models.Model):
     alert_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='alerts')
-    
+    trip     = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='alerts')
+
     alert_types = [
-        ('Vision', 'Vision Detection'),
-        ('Behavior', 'Suspicious Behavior'),
-        ('Route', 'Route Deviation'),
-        ('System', 'System Alert'),
-        ('Fusion', 'High Risk Fusion Alert'),
-        ('IoT', 'IoT Sensor Anomaly')
+        ('Vision',    'Vision Detection'),
+        ('Behavior',  'Suspicious Behavior'),
+        ('Route',     'Route Deviation'),
+        ('System',    'System Alert'),
+        ('Fusion',    'High Risk Fusion Alert'),
+        ('IoT',       'IoT Sensor Anomaly'),
     ]
     type = models.CharField(max_length=20, choices=alert_types)
-    
+
     severity_choices = [
-        ('Low', 'Low'),
-        ('Medium', 'Medium'),
-        ('High', 'High'),
-        ('Critical', 'Critical')
+        ('Low',      'Low'),
+        ('Medium',   'Medium'),
+        ('High',     'High'),
+        ('Critical', 'Critical'),
     ]
-    severity = models.CharField(max_length=20, choices=severity_choices, default='Medium')
-    
-    risk_score = models.FloatField()
-    description = models.TextField()
+    severity       = models.CharField(max_length=20, choices=severity_choices, default='Medium')
+    risk_score     = models.FloatField()
+    description    = models.TextField()
     ai_explanation = models.TextField(blank=True, null=True)
-    resolved = models.BooleanField(default=False)
+    resolved       = models.BooleanField(default=False)
+
+    # Notification tracking
+    email_sent    = models.BooleanField(default=False)
+    sms_sent      = models.BooleanField(default=False)
+    notified_at   = models.DateTimeField(null=True, blank=True)
+
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-timestamp']
+
     def __str__(self):
-        return f"[{self.severity}] {self.type} Alert ({self.risk_score}) for Trip {self.trip.trip_id}"
+        return f"[{self.severity}] {self.type} Alert (score={self.risk_score}) — Trip {self.trip.trip_id}"
