@@ -327,3 +327,259 @@ function floatOrDefault(val: any, defaultVal: number): number {
     const parsed = parseFloat(val);
     return isNaN(parsed) ? defaultVal : parsed;
 }
+
+// ─── AUTH API ────────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+}
+
+export interface AuthTokens {
+    access: string;
+    refresh: string;
+    user: AuthUser;
+}
+
+let _accessToken: string | null = null;
+
+export function setAccessToken(token: string | null) {
+    _accessToken = token;
+    if (typeof window !== 'undefined') {
+        if (token) localStorage.setItem('rakshak_token', token);
+        else localStorage.removeItem('rakshak_token');
+    }
+}
+
+export function getAccessToken(): string | null {
+    if (_accessToken) return _accessToken;
+    if (typeof window !== 'undefined') {
+        return localStorage.getItem('rakshak_token');
+    }
+    return null;
+}
+
+function authHeaders(): HeadersInit {
+    const token = getAccessToken();
+    return token
+        ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+        : { 'Content-Type': 'application/json' };
+}
+
+export async function login(username: string, password: string): Promise<AuthTokens | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/auth/login/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+        if (!res.ok) throw new Error('Login failed');
+        const data = await res.json();
+        setAccessToken(data.access ?? null);
+        return data as AuthTokens;
+    } catch (e) {
+        console.warn('[RAKSHAK] Login API unavailable.', e);
+        return null;
+    }
+}
+
+export async function logout(): Promise<void> {
+    const token = getAccessToken();
+    if (token) {
+        try {
+            await fetch(`${API_BASE_URL}/auth/logout/`, {
+                method: 'POST',
+                headers: authHeaders(),
+            });
+        } catch { /* ignore network errors on logout */ }
+    }
+    setAccessToken(null);
+}
+
+export async function getCurrentUser(): Promise<AuthUser | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/auth/me/`, { headers: authHeaders() });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    }
+}
+
+// ─── RISK FUSION (live backend score) ────────────────────────────────────────
+
+export interface RiskFusionResult {
+    composite_score: number;         // 0–100
+    risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    confidence: number;              // 0–1
+    fusion_method: string;
+    component_scores: {
+        vision?: number;
+        behaviour?: number;
+        route?: number;
+        digital_twin?: number;
+    };
+    triggered_rules: string[];
+    explanation: string;
+}
+
+export async function getRiskFusion(tripId: string): Promise<RiskFusionResult | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/agents/risk-fusion/?trip_id=${tripId}`, {
+            headers: authHeaders(),
+        });
+        if (!res.ok) throw new Error('risk-fusion fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Risk Fusion API unavailable.', e);
+        return null;
+    }
+}
+
+// ─── ROUTE AGENT ─────────────────────────────────────────────────────────────
+
+export interface RouteCheckResult {
+    in_safe_corridor: boolean;
+    deviation_km: number;
+    in_high_risk_zone: boolean;
+    high_risk_zone_name: string | null;
+    route_risk_score: number;         // 0–1
+    alert_created: object | null;
+}
+
+export async function checkRoute(tripId: string, lat: number, lng: number): Promise<RouteCheckResult | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/agents/route/`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ trip_id: tripId, truck_id: tripId, gps_lat: lat, gps_lon: lng }),
+        });
+        if (!res.ok) throw new Error('route agent failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Route Agent unavailable.', e);
+        return null;
+    }
+}
+
+// ─── DIGITAL TWIN TELEMETRY ───────────────────────────────────────────────────
+
+export interface TelemetryPayload {
+    trip_id: string;
+    truck_id: string;
+    gps_lat: number;
+    gps_lon: number;
+    door_state: 'OPEN' | 'CLOSED';
+    cargo_weight_kg: number;
+    engine_on: boolean;
+    driver_rfid_scanned: boolean;
+    iot_signal_strength: number;  // 0.0–1.0
+}
+
+export interface DigitalTwinResult {
+    twin_status: 'NORMAL' | 'DEGRADED' | 'CRITICAL';
+    deviation_score: number;
+    deviations: string[];
+    alert_created: object | null;
+}
+
+export async function pushTelemetry(payload: TelemetryPayload): Promise<DigitalTwinResult | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/agents/digital-twin/`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('digital-twin failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Digital Twin API unavailable.', e);
+        return null;
+    }
+}
+
+// ─── BEHAVIOUR AGENT ─────────────────────────────────────────────────────────
+
+export interface BehaviourTrack {
+    track_id: number;
+    dwell_seconds: number;
+    velocity: { dx: number; dy: number };
+    confidence: number;
+}
+
+export interface BehaviourResult {
+    is_anomaly: boolean;
+    anomaly_score: number;
+    loitering_detected: boolean;
+    loitering_duration_s: number;
+    crowd_anomaly: boolean;
+    flagged_track_ids: number[];
+    alert_created: object | null;
+}
+
+export async function runBehaviourAnalysis(
+    tripId: string,
+    truckId: string,
+    tracks: BehaviourTrack[]
+): Promise<BehaviourResult | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/agents/behaviour-analysis/`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ trip_id: tripId, truck_id: truckId, tracks }),
+        });
+        if (!res.ok) throw new Error('behaviour agent failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Behaviour Agent unavailable.', e);
+        return null;
+    }
+}
+
+// ─── EXPLAINABILITY AGENT ────────────────────────────────────────────────────
+
+export interface ExplainResult {
+    explanation: string;
+    recommended_action: string;
+    confidence: number;
+}
+
+export async function explainAlert(alertId: string): Promise<ExplainResult | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/agents/explain/`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ alert_id: alertId }),
+        });
+        if (!res.ok) throw new Error('explain endpoint failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Explain Agent unavailable.', e);
+        return null;
+    }
+}
+
+// ─── GPS LOG PUSH ─────────────────────────────────────────────────────────────
+// Sends a real GPS ping to the backend for a given trip.
+
+export async function pushGPSLog(tripId: string, lat: number, lng: number, speedKmh: number): Promise<boolean> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/gps-logs/`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                trip: tripId,
+                latitude: lat,
+                longitude: lng,
+                speed: speedKmh,
+                timestamp: new Date().toISOString(),
+            }),
+        });
+        return res.ok;
+    } catch {
+        return false;
+    }
+}
+
