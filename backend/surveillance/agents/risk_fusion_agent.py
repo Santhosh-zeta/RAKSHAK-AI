@@ -42,7 +42,9 @@ class RiskOutput(BaseModel):
 class RiskFusionAgent:
     def __init__(self):
         self.redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        self.model_path = "AI-models/risk_model.pkl"
+        self.model_path = os.path.join(
+            os.path.dirname(__file__), "..", "ai_models", "risk_model.pkl"
+        )
         self.output_channel = "rakshak.risk.output"
         self.input_channels = ["rakshak.behaviour.output",
                               "rakshak.twin.output",
@@ -387,4 +389,3 @@ if __name__ == "__main__":
         await agent.run()
     
     asyncio.run(main())
-    god
