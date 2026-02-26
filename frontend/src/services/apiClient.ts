@@ -643,6 +643,25 @@ export async function getTrips(): Promise<TripRecord[]> {
     }
 }
 
+export async function createTrip(data: {
+    truck: string;
+    start_location_name: string;
+    destination_name: string;
+    start_time: string;
+}): Promise<boolean> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/trips/`, {
+            method: 'POST',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return res.ok;
+    } catch (e) {
+        console.warn('[RAKSHAK] Trip creation failed.', e);
+        return false;
+    }
+}
+
 // ─── TRIP DASHBOARD (single trip detail) ─────────────────────────────────────
 
 export interface TripDashboard {
@@ -723,5 +742,44 @@ export async function getCompanies(): Promise<CompanyRecord[]> {
     } catch (e) {
         console.warn('[RAKSHAK] Companies API unavailable.', e);
         return [];
+    }
+}
+
+export interface AdminUserRecord {
+    id: number;
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+    role: string;
+    company: string | null;
+    company_name: string;
+    is_active: boolean;
+    created_at: string;
+}
+
+export async function getAdminUsers(): Promise<AdminUserRecord[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/admin/users/`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('Admin users fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Admin users API unavailable.', e);
+        return [];
+    }
+}
+
+export async function patchAdminUser(userId: number, data: { role?: string; is_active?: boolean }): Promise<boolean> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/`, {
+            method: 'PATCH',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return res.ok;
+    } catch (e) {
+        console.warn(`[RAKSHAK] Failed to patch admin user ${userId}.`, e);
+        return false;
     }
 }

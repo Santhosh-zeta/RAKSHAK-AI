@@ -3,8 +3,12 @@
 import { useState, useEffect } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
 import styles from './page.module.css';
-import { Shield, BrainCircuit, Monitor, HardHat, Shirt, Pill, Car, CheckCircle2, Box, History } from 'lucide-react';
+import { Shield, BrainCircuit, Monitor, HardHat, Shirt, Pill, Car, CheckCircle2, Box, History, MapPin } from 'lucide-react';
 import { ROUTE_OPTIONS, CARGO_TYPE_OPTIONS, computeRiskReport, RiskReportResult } from '@/services/riskUtils';
+import AuthGuard from '@/components/AuthGuard';
+import dynamic from 'next/dynamic';
+
+const GoogleMapComponent = dynamic(() => import('@/components/GoogleMapComponent'), { ssr: false });
 
 const staggerContainer = {
     hidden: { opacity: 0 },
@@ -69,11 +73,14 @@ export default function RiskAnalysis() {
             });
             if (res.ok) {
                 const data = await res.json();
+                const routeData = ROUTE_OPTIONS.find(r => r.label === route);
                 computed = {
                     score: data.risk_score ?? data.score, level: data.risk_level ?? data.level,
                     breakdown: data.breakdown ?? [],
                     reasons: data.reasons ?? [],
-                    dangerZones: data.danger_zones ?? ROUTE_OPTIONS.find(r => r.label === route)?.dangerZones ?? [],
+                    dangerZones: data.danger_zones ?? routeData?.dangerZones ?? [],
+                    routePath: data.route_path ?? routeData?.path ?? [],
+                    dangerZoneMarks: data.danger_zone_marks ?? routeData?.dangerZoneMarks ?? [],
                     timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
                 };
             }
@@ -268,6 +275,22 @@ export default function RiskAnalysis() {
                                 {result.dangerZones.map((z, i) => (
                                     <div key={i} className={styles.dangerZoneItem}>{z}</div>
                                 ))}
+                            </motion.div>
+                        )}
+
+                        {/* Map Visualization */}
+                        {result.routePath && result.routePath.length > 0 && (
+                            <motion.div variants={fadeUp} style={{ marginTop: '1.5rem', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', backgroundColor: '#1e293b' }}>
+                                <div style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#f8fafc' }}>
+                                    <MapPin size={16} style={{ color: '#3b82f6' }} /> Route Map
+                                </div>
+                                <GoogleMapComponent
+                                    height="280px"
+                                    center={result.routePath[Math.floor(result.routePath.length / 2)]}
+                                    zoom={5}
+                                    polyline={result.routePath}
+                                    dangerZones={result.dangerZoneMarks}
+                                />
                             </motion.div>
                         )}
 
