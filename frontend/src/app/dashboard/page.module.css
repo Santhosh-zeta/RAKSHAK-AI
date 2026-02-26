@@ -243,6 +243,7 @@
     color: var(--color-text-main);
     line-height: 1;
     letter-spacing: -1px;
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', Courier, monospace;
 }
 
 .textHigh {
@@ -327,6 +328,7 @@
     stroke-width: 3;
     stroke-linecap: round;
     animation: fillCirc 1.5s ease-out forwards;
+    filter: drop-shadow(0 0 4px rgba(27, 99, 162, 0.6));
 }
 
 .circleText {
@@ -439,9 +441,32 @@
 .mapGlow {
     position: absolute;
     inset: 0;
-    box-shadow: inset 0 0 50px rgba(27, 99, 162, 0.15);
+    box-shadow: inset 0 0 50px rgba(27, 99, 162, 0.2);
     pointer-events: none;
     z-index: 10;
+}
+
+.mapGlow::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(from 0deg, transparent 70%, rgba(27, 99, 162, 0.3) 100%);
+    animation: radarSweep 6s linear infinite;
+    pointer-events: none;
+    border-radius: 50%;
+}
+
+@keyframes radarSweep {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .mapPlaceholder {
@@ -454,13 +479,14 @@
     bottom: 1rem;
     left: 1rem;
     width: 300px;
-    background: rgba(10, 15, 28, 0.85);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(27, 99, 162, 0.3);
+    background: rgba(10, 15, 28, 0.55);
+    backdrop-filter: blur(12px) contrast(1.1);
+    border: 1px solid rgba(27, 99, 162, 0.4);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
     border-radius: 8px;
     z-index: 20;
     padding: 0.75rem;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', Courier, monospace;
 }
 
 .terminalHeader {
@@ -685,6 +711,7 @@
 .colValue {
     font-weight: 600;
     color: var(--color-text-main);
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', Courier, monospace;
 }
 
 .colPing {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
 import { getAlerts, EnhancedAlert, SEED_FLEET } from '@/services/apiClient';
 import {
@@ -309,112 +310,129 @@ export default function Alerts() {
                     </div>
 
                     {filteredAlerts.length === 0 ? (
-                        <div className={styles.emptyState}>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.emptyState}>
                             <CheckCircle2 size={48} className={styles.successIcon} />
                             <p>{showResolved ? 'No resolved alerts yet.' : 'No active alerts for this filter. System nominal.'}</p>
-                        </div>
+                        </motion.div>
                     ) : (
                         <div className={styles.alertsList}>
-                            {filteredAlerts.map(alert => {
-                                const meta = SEVERITY_META[alert.level] || SEVERITY_META['Low'];
-                                const isExpanded = expandedAlertId === alert.id;
-                                const location = getLocation(alert.truckId); // A2
-                                return (
-                                    <div
-                                        key={alert.id}
-                                        className={`${styles.alertCard} ${isExpanded ? styles.expanded : ''}`}
-                                        style={{ borderLeftColor: meta.border, background: isExpanded ? meta.bg : undefined }}
-                                    >
-                                        <div className={styles.alertCardHeader} onClick={() => toggleExpand(alert.id)}>
-                                            <div className={styles.alertIcon} style={{ color: meta.color, background: `${meta.color}15` }}>
-                                                <AlertCircle size={22} />
-                                            </div>
-                                            <div className={styles.alertDetails}>
-                                                <div className={styles.alertTopRow}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                                                        <span className={styles.alertLevel} style={{ color: meta.color }}>{meta.icon} {alert.level.toUpperCase()}</span>
-                                                        <span className={styles.alertTypeBadge} style={{ background: `${meta.color}12`, color: meta.color, border: `1px solid ${meta.color}25` }}>
-                                                            {alert.type}
-                                                        </span>
-                                                        {alert.truckId && <span className={styles.truckBadge}>{alert.truckId}</span>}
-                                                    </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        {alert.riskScore !== undefined && (
-                                                            <div className={styles.miniRiskBar}>
-                                                                <div style={{ width: 50, height: 4, borderRadius: 2, background: '#e2e8f0', overflow: 'hidden' }}>
-                                                                    <div style={{ width: `${alert.riskScore}%`, height: '100%', background: meta.color, borderRadius: 2 }} />
+                            <AnimatePresence>
+                                {filteredAlerts.map(alert => {
+                                    const meta = SEVERITY_META[alert.level] || SEVERITY_META['Low'];
+                                    const isExpanded = expandedAlertId === alert.id;
+                                    const location = getLocation(alert.truckId); // A2
+                                    return (
+                                        <motion.div
+                                            layout
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                                            key={alert.id}
+                                            className={`${styles.alertCard} ${isExpanded ? styles.expanded : ''} ${alert.level === 'Critical' && !resolvedIds.has(alert.id) ? styles.criticalPulseBorder : ''}`}
+                                            style={{ borderLeftColor: meta.border, background: isExpanded ? meta.bg : undefined }}
+                                        >
+                                            <div className={styles.alertCardHeader} onClick={() => toggleExpand(alert.id)}>
+                                                <div className={styles.alertIcon} style={{ color: meta.color, background: `${meta.color}15` }}>
+                                                    <AlertCircle size={22} />
+                                                </div>
+                                                <div className={styles.alertDetails}>
+                                                    <div className={styles.alertTopRow}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                                            <span className={styles.alertLevel} style={{ color: meta.color }}>{meta.icon} {alert.level.toUpperCase()}</span>
+                                                            <span className={styles.alertTypeBadge} style={{ background: `${meta.color}12`, color: meta.color, border: `1px solid ${meta.color}25` }}>
+                                                                {alert.type}
+                                                            </span>
+                                                            {alert.truckId && <span className={styles.truckBadge}>{alert.truckId}</span>}
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            {alert.riskScore !== undefined && (
+                                                                <div className={styles.miniRiskBar}>
+                                                                    <div style={{ width: 50, height: 4, borderRadius: 2, background: '#e2e8f0', overflow: 'hidden' }}>
+                                                                        <div style={{ width: `${alert.riskScore}%`, height: '100%', background: meta.color, borderRadius: 2 }} />
+                                                                    </div>
+                                                                    <span className={styles.miniRiskScore} style={{ color: meta.color }}>{alert.riskScore}</span>
                                                                 </div>
-                                                                <span className={styles.miniRiskScore} style={{ color: meta.color }}>{alert.riskScore}</span>
-                                                            </div>
-                                                        )}
-                                                        <span className={styles.alertTime}><Clock size={12} /> {alert.time}</span>
+                                                            )}
+                                                            <span className={styles.alertTime}><Clock size={12} /> {alert.time}</span>
+                                                        </div>
                                                     </div>
+                                                    <p className={styles.alertMessage}>{alert.message}</p>
                                                 </div>
-                                                <p className={styles.alertMessage}>{alert.message}</p>
-                                            </div>
-                                            <div className={styles.alertActions}>
-                                                <button className={styles.expandBtn} aria-label={isExpanded ? 'Collapse alert' : 'Expand alert'}>
-                                                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {isExpanded && (
-                                            <div className={styles.expandedContent}>
-                                                {/* AI Explanation */}
-                                                <div className={styles.aiExplanationPanel}>
-                                                    <div className={styles.aiExplanationHeader}>
-                                                        <Brain size={14} style={{ color: '#8b5cf6' }} />
-                                                        <span>Explainable AI Analysis</span>
-                                                    </div>
-                                                    <p className={styles.aiExplanationText}>{alert.aiExplanation}</p>
-                                                </div>
-
-                                                <div className={styles.expandedGrid}>
-                                                    {/* A2: Real GPS location from SEED_FLEET */}
-                                                    <div className={styles.expandedItem}>
-                                                        <span className={styles.expandedLabel}><MapPin size={13} /> Location Snapshot</span>
-                                                        <span className={styles.expandedValue}>
-                                                            {location
-                                                                ? `${location.lat.toFixed(4)}°N, ${location.lng.toFixed(4)}°E`
-                                                                : 'Location unavailable'}
-                                                        </span>
-                                                    </div>
-                                                    <div className={styles.expandedItem}>
-                                                        <span className={styles.expandedLabel}><Navigation size={13} /> Recommended Action</span>
-                                                        <span className={styles.expandedValue} style={{ color: meta.color }}>
-                                                            {alert.level === 'Critical' ? 'Dispatch rapid response. Lock container. Notify police immediately.' :
-                                                                alert.level === 'High' ? 'Alert driver and control room. Request visual confirmation.' :
-                                                                    'Monitor live feeds. Notify convoy leader of potential risk.'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                <div className={styles.expandedActions}>
-                                                    {/* A1: "View on Map" now navigates to dashboard */}
-                                                    <button
-                                                        className={styles.actionBtnSecondary}
-                                                        onClick={(e) => { e.stopPropagation(); router.push('/dashboard'); }}
-                                                        aria-label="View vehicle on map"
-                                                    >
-                                                        View on Map
+                                                <div className={styles.alertActions}>
+                                                    <button className={styles.expandBtn} aria-label={isExpanded ? 'Collapse alert' : 'Expand alert'}>
+                                                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                                     </button>
-                                                    {!resolvedIds.has(alert.id) && (
-                                                        <button
-                                                            className={styles.actionBtnPrimary}
-                                                            style={{ background: meta.color }}
-                                                            onClick={(e) => resolve(alert.id, e)}
-                                                            aria-label="Acknowledge and resolve this alert"
-                                                        >
-                                                            <CheckCircle2 size={14} /> Acknowledge &amp; Resolve
-                                                        </button>
-                                                    )}
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+
+                                            <AnimatePresence>
+                                                {isExpanded && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        transition={{ duration: 0.2 }}
+                                                        style={{ overflow: 'hidden' }}
+                                                    >
+                                                        <div className={styles.expandedContent}>
+                                                            {/* AI Explanation */}
+                                                            <div className={styles.aiExplanationPanel}>
+                                                                <div className={styles.aiExplanationHeader}>
+                                                                    <Brain size={14} style={{ color: '#8b5cf6' }} />
+                                                                    <span>Explainable AI Analysis</span>
+                                                                </div>
+                                                                <p className={styles.aiExplanationText}>{alert.aiExplanation}</p>
+                                                            </div>
+
+                                                            <div className={styles.expandedGrid}>
+                                                                {/* A2: Real GPS location from SEED_FLEET */}
+                                                                <div className={styles.expandedItem}>
+                                                                    <span className={styles.expandedLabel}><MapPin size={13} /> Location Snapshot</span>
+                                                                    <span className={styles.expandedValue}>
+                                                                        {location
+                                                                            ? `${location.lat.toFixed(4)}°N, ${location.lng.toFixed(4)}°E`
+                                                                            : 'Location unavailable'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className={styles.expandedItem}>
+                                                                    <span className={styles.expandedLabel}><Navigation size={13} /> Recommended Action</span>
+                                                                    <span className={styles.expandedValue} style={{ color: meta.color }}>
+                                                                        {alert.level === 'Critical' ? 'Dispatch rapid response. Lock container. Notify police immediately.' :
+                                                                            alert.level === 'High' ? 'Alert driver and control room. Request visual confirmation.' :
+                                                                                'Monitor live feeds. Notify convoy leader of potential risk.'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className={styles.expandedActions}>
+                                                                {/* A1: "View on Map" now navigates to dashboard */}
+                                                                <button
+                                                                    className={styles.actionBtnSecondary}
+                                                                    onClick={(e) => { e.stopPropagation(); router.push('/dashboard'); }}
+                                                                    aria-label="View vehicle on map"
+                                                                >
+                                                                    View on Map
+                                                                </button>
+                                                                {!resolvedIds.has(alert.id) && (
+                                                                    <button
+                                                                        className={styles.actionBtnPrimary}
+                                                                        style={{ background: meta.color }}
+                                                                        onClick={(e) => resolve(alert.id, e)}
+                                                                        aria-label="Acknowledge and resolve this alert"
+                                                                    >
+                                                                        <CheckCircle2 size={14} /> Acknowledge &amp; Resolve
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </motion.div>
+                                    );
+                                })}
+                            </AnimatePresence>
                         </div>
                     )}
                 </div>
