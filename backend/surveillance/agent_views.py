@@ -5,6 +5,8 @@ from .serializers import AlertSerializer
 import datetime
 import asyncio
 import uuid
+import base64
+import json
 
 # ===========================================================================
 # Behaviour Agent Bridge
@@ -20,6 +22,43 @@ def _get_behaviour_agent():
         asyncio.run(agent.start())
         _behaviour_agent = agent
     return _behaviour_agent
+
+# ===========================================================================
+# Perception Agent Bridge
+# ===========================================================================
+_perception_agent = None
+
+def _get_perception_agent():
+    """Lazily initialise the PerceptionAgent (YOLO + DeepSort loaded once)."""
+    global _perception_agent
+    if _perception_agent is None:
+        from surveillance.agents.perception_agent import PerceptionAgent
+        import redis.asyncio as aioredis
+        import os
+
+        agent = PerceptionAgent()
+        
+        # Load YOLO model
+        from ultralytics import YOLO
+        import torch
+        agent.model = YOLO(agent.model_path)  # downloads yolov8n.pt on first run
+        if torch.cuda.is_available():
+            agent.model.to('cuda')
+        agent.conf_threshold = 0.4
+        agent.running = True
+
+        # Connect Redis (used for publishing to PerceptionOutput channel)
+        try:
+            async def _connect():
+                r = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+                await r.ping()
+                agent.redis = r
+            asyncio.run(_connect())
+        except Exception:
+            agent.redis = None  # Redis down — still works, just won't publish
+
+        _perception_agent = agent
+    return _perception_agent
 
 # ===========================================================================
 # Decision Agent Bridge
@@ -56,6 +95,111 @@ def _get_decision_agent():
         _decision_agent = agent
     return _decision_agent
 
+
+class PerceptionView(views.APIView):
+    """
+    HTTP bridge into the PerceptionAgent (YOLO + DeepSort).
+
+    POST /api/agents/perception/
+    Body: {
+        "trip_id": "<uuid>",
+        "truck_id": "TRK-001",          # optional, defaults to env TRUCK_ID
+        "frame_b64": "<base64-encoded JPEG/PNG image>",
+        "frame_id":  42                  # optional frame counter
+    }
+
+    Returns PerceptionOutput tracks + scene_tags, persists a Vision Alert
+    if any person is detected, and publishes to Redis 'rakshak.perception.output'
+    so BehaviourAgent can pick it up in real-time.
+    """
+    def post(self, request):
+        from surveillance.agents.perception_agent import PerceptionOutput, Track, Velocity
+        from datetime import datetime as dt
+
+        trip_id   = request.data.get('trip_id')
+        truck_id  = request.data.get('truck_id', 'TRK-001')
+        frame_b64 = request.data.get('frame_b64')
+        frame_id  = int(request.data.get('frame_id', 0))
+
+        if not trip_id:
+            return Response({"error": "trip_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not frame_b64:
+            return Response({"error": "frame_b64 (base64 image) is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            trip = Trip.objects.get(trip_id=trip_id)
+        except Trip.DoesNotExist:
+            return Response({"error": "Trip not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Decode base64 image
+        try:
+            frame_bytes = base64.b64decode(frame_b64)
+        except Exception:
+            return Response({"error": "Invalid base64 in frame_b64"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Run YOLO + DeepSort
+        try:
+            agent = _get_perception_agent()
+            tracks = agent._process_frame(frame_bytes)
+        except Exception as e:
+            return Response({"error": f"PerceptionAgent error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Build scene tags
+        current_hour = dt.now().hour
+        scene_tags = agent._compute_scene_tags(tracks, current_hour)
+
+        # Build full PerceptionOutput dict for Redis publishing
+        perception_out = {
+            "truck_id": truck_id,
+            "frame_id": frame_id,
+            "timestamp": dt.now().isoformat(),
+            "tracks": [t.model_dump() for t in tracks],
+            "scene_tags": scene_tags
+        }
+
+        # Publish to Redis so BehaviourAgent gets it in real-time
+        if agent.redis:
+            try:
+                asyncio.run(agent.redis.publish(
+                    agent.output_channel,
+                    json.dumps(perception_out)
+                ))
+            except Exception:
+                pass  # Non-fatal if Redis publish fails
+
+        # Persist a Vision Alert for any person detections
+        alert_obj = None
+        person_tracks = [t for t in tracks if t.class_name == 'person']
+        if person_tracks:
+            max_conf   = max(t.confidence for t in person_tracks)
+            risk_score = round(min(30.0 + max_conf * 50.0, 100.0), 2)
+            severity   = 'Critical' if risk_score >= 80 else ('High' if risk_score >= 60 else 'Medium')
+            loitering  = [t for t in person_tracks if t.dwell_seconds > 30]
+
+            desc = (f"Perception Agent: {len(person_tracks)} person(s) detected. "
+                    f"{'Loitering detected. ' if loitering else ''}"
+                    f"Max confidence: {max_conf:.2f}. Tags: {scene_tags}.")
+
+            alert_obj = Alert.objects.create(
+                trip=trip,
+                type='Vision',
+                severity=severity,
+                risk_score=risk_score,
+                description=desc,
+                ai_explanation=f"YOLO+DeepSort: {len(tracks)} total tracks, {len(person_tracks)} persons. Frame #{frame_id}."
+            )
+
+        tracks_data = [t.model_dump() for t in tracks]
+
+        return Response({
+            "frame_id": frame_id,
+            "track_count": len(tracks),
+            "person_count": len([t for t in tracks if t.class_name == 'person']),
+            "scene_tags":  scene_tags,
+            "tracks":      tracks_data,
+            "alert_created": AlertSerializer(alert_obj).data if alert_obj else None,
+            "published_to_redis": agent.redis is not None,
+        }, status=status.HTTP_200_OK)
 
 class DecisionView(views.APIView):
     """
