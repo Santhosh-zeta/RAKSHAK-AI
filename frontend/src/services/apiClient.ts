@@ -208,14 +208,14 @@ export async function getFleetData(): Promise<FleetVehicle[]> {
     if (USE_MOCK) return SEED_FLEET;
 
     try {
-        const tripRes = await fetch(`${API_BASE_URL}/trips/`);
+        const tripRes = await fetch(`${API_BASE_URL}/trips/`, { headers: authHeaders() });
         if (!tripRes.ok) throw new Error('trips fetch failed');
         const trips = await tripRes.json();
 
         const fleet: FleetVehicle[] = [];
 
         for (const trip of trips) {
-            const dsRes = await fetch(`${API_BASE_URL}/trips/${trip.trip_id}/dashboard/`);
+            const dsRes = await fetch(`${API_BASE_URL}/trips/${trip.trip_id}/dashboard/`, { headers: authHeaders() });
             if (!dsRes.ok) continue;
             const dashboard = await dsRes.json();
 
@@ -263,7 +263,7 @@ export async function getAlerts(): Promise<Alert[]> {
     if (USE_MOCK) return SEED_ALERTS;
 
     try {
-        const res = await fetch(`${API_BASE_URL}/alerts/`);
+        const res = await fetch(`${API_BASE_URL}/alerts/`, { headers: authHeaders() });
         if (!res.ok) throw new Error('alerts fetch failed');
         const data = await res.json();
 
@@ -293,7 +293,7 @@ export async function triggerSimulation(tripId: string): Promise<boolean> {
     try {
         const res = await fetch(`${API_BASE_URL}/agents/simulate/`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ trip_id: tripId })
         });
         return res.ok;
@@ -364,7 +364,7 @@ export function getAccessToken(): string | null {
 function authHeaders(): HeadersInit {
     const token = getAccessToken();
     return token
-        ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+        ? { 'Content-Type': 'application/json', Authorization: `Token ${token}` }
         : { 'Content-Type': 'application/json' };
 }
 
@@ -377,7 +377,8 @@ export async function login(username: string, password: string): Promise<AuthTok
         });
         if (!res.ok) throw new Error('Login failed');
         const data = await res.json();
-        setAccessToken(data.access ?? null);
+        // DRF TokenAuthentication returns { token, user, company }
+        setAccessToken(data.token ?? data.access ?? null);
         return data as AuthTokens;
     } catch (e) {
         console.warn('[RAKSHAK] Login API unavailable.', e);

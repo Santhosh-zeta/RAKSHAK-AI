@@ -207,6 +207,212 @@
     color: #0284c7;
 }
 
+/* ── User menu ────────────────────────────────────────────────────────────── */
+.navRight {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bellBtn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.bellBtn:hover {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.bellBadge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ef4444;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 900;
+    padding: 1px 5px;
+    border-radius: 999px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.userMenuWrap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    position: relative;
+}
+
+.userBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.35rem 0.7rem 0.35rem 0.35rem;
+    background: rgba(2, 132, 199, 0.05);
+    border: 1px solid rgba(2, 132, 199, 0.15);
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.userBtn:hover {
+    background: rgba(2, 132, 199, 0.1);
+    border-color: rgba(2, 132, 199, 0.3);
+}
+
+.userAvatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.userInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    text-align: left;
+}
+
+.userName {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1;
+}
+
+.userRole {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    line-height: 1;
+}
+
+.chevron {
+    color: #94a3b8;
+    transition: transform 0.2s;
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+.userDropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 180px;
+    background: white;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    animation: dropDown 0.15s ease;
+    z-index: 300;
+}
+
+.dropdownHeader {
+    padding: 0.85rem 1rem 0.7rem;
+}
+
+.dropdownName {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.dropdownRole {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin: 0.1rem 0 0;
+}
+
+.dropdownDivider {
+    border: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    margin: 0;
+}
+
+.dropdownItem {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: #475569;
+    transition: background 0.15s, color 0.15s;
+    text-align: left;
+}
+
+.dropdownItem:hover {
+    background: rgba(239, 68, 68, 0.05);
+    color: #ef4444;
+}
+
+/* Login button */
+.loginBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1rem;
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    color: white;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: opacity 0.2s, transform 0.15s;
+    box-shadow: 0 2px 12px rgba(14, 165, 233, 0.25);
+}
+
+.loginBtn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.mobileLogout {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: 100%;
+    margin-top: 0.25rem;
+}
+
+.mobileLogout:hover {
+    background: rgba(239, 68, 68, 0.12);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .navbar {
@@ -221,5 +427,13 @@
 
     .hamburger {
         display: flex;
+    }
+
+    .userInfo {
+        display: none;
+    }
+
+    .chevron {
+        display: none;
     }
 }
