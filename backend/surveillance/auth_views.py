@@ -228,3 +228,76 @@ class RegisterView(views.APIView):
             "user": CompanyUserSerializer(profile).data,
             "token": token.key,
         }, status=status.HTTP_201_CREATED)
+
+
+class CompanyRegistrationView(views.APIView):
+    """
+    POST /api/auth/register-company/  [Public]
+    Allows a brand new company to sign up themselves.
+    Creates the LogisticsCompany + initial admin User + CompanyUser profile.
+    Body: {
+        "company_name": "New Logistics Corp",
+        "company_city": "Mumbai",
+        "username": "new_corp_admin",
+        "password": "SecurePass123",
+        "email": "admin@newcorp.com",
+        "first_name": "Jane",
+        "last_name": "Doe"
+    }
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        company_name = request.data.get('company_name', '').strip()
+        company_city = request.data.get('company_city', '').strip()
+        username     = request.data.get('username', '').strip()
+        password     = request.data.get('password', '')
+        email        = request.data.get('email', '').strip()
+        first_name   = request.data.get('first_name', '').strip()
+        last_name    = request.data.get('last_name', '').strip()
+
+        # Validate
+        if not company_name:
+            return Response({"error": "company_name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not username or not password:
+            return Response({"error": "username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(password) < 8:
+            return Response({"error": "Password must be at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username=username).exists():
+            return Response({"error": f"Username '{username}' already taken."}, status=status.HTTP_400_BAD_REQUEST)
+        if LogisticsCompany.objects.filter(name__iexact=company_name).exists():
+            return Response({"error": f"Company '{company_name}' already registered."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create Company
+        company = LogisticsCompany.objects.create(
+            name=company_name,
+            city=company_city,
+            control_email=email
+        )
+
+        # Create User
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+        )
+
+        # Create Profile
+        profile = CompanyUser.objects.create(
+            user=user,
+            company=company,
+            role='company_user'  # the first user is basically the company admin
+        )
+
+        # Auth Token
+        token = Token.objects.create(user=user)
+
+        return Response({
+            "message": "Company registered successfully.",
+            "token": token.key,
+            "user": CompanyUserSerializer(profile).data,
+            "company": LogisticsCompanySerializer(company).data
+        }, status=status.HTTP_201_CREATED)
+

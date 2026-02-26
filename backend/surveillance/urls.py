@@ -10,7 +10,8 @@ from .agent_views import (
     DigitalTwinView, RouteView, RiskFusionView, ExplainabilityView,
 )
 from .auth_views import (
-    LoginView, LogoutView, MeView, ChangePasswordView, RegisterView
+    LoginView, LogoutView, MeView, ChangePasswordView, RegisterView,
+    CompanyRegistrationView
 )
 from .admin_views import (
     AdminDashboardView, AdminCompanyListView, AdminUserListView,
@@ -36,6 +37,8 @@ urlpatterns = [
     path('auth/me/',             MeView.as_view(),             name='auth-me'),
     path('auth/change-password/',ChangePasswordView.as_view(), name='auth-change-password'),
     path('auth/register/',       RegisterView.as_view(),       name='auth-register'),   # Admin only
+    path('auth/register-company/',CompanyRegistrationView.as_view(), name='auth-register-company'), # Public
+
 
     # ---------------------------------------------------------
     # Admin Panel Endpoints (Requires 'admin' role)

@@ -10,6 +10,43 @@
 
 ---
 
+## 🔐 Authentication Endpoints
+
+These endpoints are used to authenticate users and register new logistics companies.
+
+### 1. Login
+Returns an authentication token, user details, and company details.
+```
+POST /api/auth/login/
+```
+```json
+{
+  "username": "your_username",
+  "password": "your_password"
+}
+```
+
+---
+
+### 2. Company Registration (Public)
+Registers a new logistics company and creates the initial admin user for that company.
+```
+POST /api/auth/register-company/
+```
+```json
+{
+  "company_name": "New Logistics Corp",
+  "company_city": "Mumbai",
+  "username": "new_corp_admin",
+  "password": "SecurePass123",
+  "email": "admin@newcorp.com",
+  "first_name": "Jane",
+  "last_name": "Doe"
+}
+```
+
+---
+
 ## 📦 CRUD Endpoints
 
 ### 1. List Trucks
