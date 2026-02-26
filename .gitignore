@@ -30,3 +30,4 @@ CSV-data/
 *.prj
 *.cpg
 roads/
+backend/db.sqlite3
