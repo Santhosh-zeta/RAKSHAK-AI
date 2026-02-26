@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 import uuid
 
 
@@ -70,6 +71,58 @@ class ControlAreaContact(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.role}) @ {self.company.name}"
+
+
+# ============================================================
+# Company User (Authentication & Role)
+# ============================================================
+
+class CompanyUser(models.Model):
+    """
+    Links a Django User to a LogisticsCompany with a role.
+    One profile per Django User account.
+
+    Roles:
+      admin        → full access to all companies (company=null)
+      company_user → full CRUD scoped to own company
+      viewer       → read-only scoped to own company
+    """
+    ROLE_CHOICES = [
+        ('admin',        'Platform Admin'),
+        ('company_user', 'Company User'),
+        ('viewer',       'Read-Only Viewer'),
+    ]
+
+    user      = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='company_profile'
+    )
+    company   = models.ForeignKey(
+        LogisticsCompany,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='users',
+        help_text="Null for platform admin accounts",
+    )
+    role      = models.CharField(max_length=20, choices=ROLE_CHOICES, default='company_user')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['user__username']
+        verbose_name = "Company User"
+
+    def __str__(self):
+        company_name = self.company.name if self.company else "Platform Admin"
+        return f"{self.user.username} [{self.role}] @ {company_name}"
+
+    @property
+    def full_name(self):
+        return self.user.get_full_name() or self.user.username
+
+    @property
+    def email(self):
+        return self.user.email
 
 
 # ============================================================
