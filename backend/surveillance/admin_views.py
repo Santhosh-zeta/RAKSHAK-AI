@@ -174,6 +174,10 @@ class AdminUserDetailView(views.APIView):
             "user": CompanyUserSerializer(profile).data,
         })
 
+    def patch(self, request, pk):
+        """Handle PATCH requests by delegating to the existing PUT logic, which already supports partial updates."""
+        return self.put(request, pk)
+
     def delete(self, request, pk):
         profile = self._get_profile(pk)
         if not profile:

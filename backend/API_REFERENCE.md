@@ -851,7 +851,18 @@ POST {{base_url}}/agents/explain/
 
 ## 8. Quick End-to-End Simulation
 
-Don't want to call all 7 agents manually? Use the **simulation endpoint** to instantly inject a full threat scenario into any trip:
+Don't want to call all 7 agents manually? You have two options:
+
+### Option A: The Live Simulator (Continuous Tracking)
+To simulate a truck moving along a real map route with random anomalies injected point-by-point, run:
+```bash
+cd backend
+python live_simulation.py
+```
+This script acts exactly like a streaming IoT telemetry source, feeding all agents simultaneously and generating real-time predictions visible immediately on your frontend dashboards.
+
+### Option B: The Instant Demo Endpoint
+To instantly inject a single full threat scenario into a trip via API:
 
 **What happens internally:**
 1. Creates 3 pre-set alerts on the trip: Behavior (Medium, 35%), Vision (High, 45%), System (Critical, 80%)
