@@ -1,15 +1,15 @@
 # RAKSHAK AI
 
-RAKSHAK AI is an intelligent surveillance and telemetry platform designed for high-value fleet monitoring. It merges real-time GPS tracking, computer vision (YOLOv8), and multi-agent AI risk analysis to provide preemptive intelligence and operational command.
+RAKSHAK AI is an intelligent surveillance and telemetry platform designed for high-value fleet monitoring. It merges real-time GPS tracking, computer vision (YOLOv8), and multi-agent AI risk analysis to provide preemptive intelligence, actionable insights, and centralized operational command.
 
-## Architecture
+## System Architecture
 
-The system follows a decoupled client-server architecture.
+The overarching architecture relies on a decoupled client-server model, ensuring the AI inference engine can scale independently of the client-facing telemetry dashboards.
 
 ```mermaid
 graph TD
     subgraph Frontend [Next.js Web Application]
-        UI[Command Center UI]
+        UI[Command Center]
         LM[Live Monitoring]
         RA[Risk Analysis]
         AL[Alerts Hub]
@@ -28,7 +28,7 @@ graph TD
     end
 
     UI --> |REST / JSON| API
-    LM --> |REST / JSON| API
+    LM --> |WebSockets / JSON| API
     RA --> |REST / JSON| API
     AL --> |REST / JSON| API
     
@@ -39,59 +39,84 @@ graph TD
     RFA <--> EA
 ```
 
+## Features Deep-Dive
+
+### 1. Command Center Dashboard
+The primary operations hub. It visualizes aggregate fleet health, active consignment status, and system-wide risk through highly optimized, auto-refreshing UI components.
+*   **Spatial Mapping:** Integrates dynamic routing and fleet plotting natively within the UI using Leaflet.
+*   **Telemetry Grids:** Displays constant variable feeds (speed, engine status, location) mapped against real-time baseline anomalies.
+*   **Terminal Interface:** Uses specialized typography and CSS compositing to deliver a high-contrast, distraction-free environment for human operators.
+
+### 2. Live Platform Monitoring
+A dedicated pre-journey and mid-journey surveillance interface.
+*   **Vision AI Integration:** Processes camera feeds to detect structural anomalies, unauthorized personnel, or package tampering via specific YOLO model bindings.
+*   **Staggered Reporting:** Risk reports are generated sequentially as data streams arrive, maintaining operator focus on critical changes rather than static logs.
+
+### 3. Predictive Risk Analysis Engine
+A robust Bayesian model interface used for route and cargo planning.
+*   **Physical Gauges:** Integrates dynamic vector graphics tied to spring-physics engines to display output scores.
+*   **Driver & Route Evaluation:** Weighs historical safety metadata against cargo value and live weather/traffic conditions to output a holistic danger index.
+*   **Cascading History:** Archives past predictions allowing operations to review and adjust parameters on the fly.
+
+### 4. Alert Intelligence Center
+An automated triage system for incoming anomalies.
+*   **Priority Filtering:** Sorts alerts categorically (Critical, High, Medium, Low) and instantly surfaces the highest operational danger.
+*   **Explainable AI (XAI):** Rather than outputting binary thresholds, the LLM Explainability Agent synthesizes localized data into a human-readable threat summary.
+*   **Recommended Actions:** Instantly proposes predefined security protocols (e.g., "Dispatch Rapid Response", "Notify Convoy Leader") based on the fused penalty vectors of the trigger event.
+
+## Multi-Agent AI Workflow
+
+The backend utilizes an isolated agent structure to prevent processing bottlenecks:
+*   **Vision Agent:** Intercepts raw frame data, processing YOLOv8 instances and returning base risk penalties.
+*   **Behavior Agent:** Evaluates sequential GPS logs and telemetry against historical norms using isolation forests to flag hijackings or abnormal stops.
+*   **Risk Fusion Agent:** The core orchestration brain. It merges spatial risk from routes, vision penalties, and behavior deviations into a finalized scoring metric.
+*   **Decision / Explainability Agent:** Translates the raw numeric penalty vectors from the Fusion agent into textual actions broadcasted to the frontend or notification APIs.
+
 ## Setup & Installation
 
-### 1. Backend Setup (Django + AI Core)
+### 1. Backend Integration (Django + Python AI Core)
 
-The backend drives the API endpoints, manages the database, and hosts the AI agents (LangGraph/YOLO).
+The backend hosts the API interfaces, database schemas, and the LangGraph/PyTorch execution environments.
 
-**Prerequisites:** Python 3.10+, pip, and a virtual environment.
+**Prerequisites:** Python 3.10+, standard build tools.
 
 ```bash
-# 1. Navigate to the backend directory
+# Navigate to backend directory
 cd backend
 
-# 2. Create and activate a virtual environment
+# Create isolated execution environment
 python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On Mac/Linux:
-source venv/bin/activate
+# Windows: venv\Scripts\activate
+# Unix/MacOS: source venv/bin/activate
 
-# 3. Install dependencies
+# Install compiled ML dependencies and REST frameworks
 pip install -r requirements.txt
 
-# 4. Apply database migrations
+# Provision database schemas (Trucks, Trips, GPSLogs, Alerts)
 python manage.py makemigrations
 python manage.py migrate
 
-# 5. Start the development server
+# Initialize the local API server
 python manage.py runserver
 ```
 
-The server will initialize on `http://localhost:8000/`. Reference `backend/API_REFERENCE.md` for endpoint specifications.
+Reference the `backend/API_REFERENCE.md` and `backend/AI_CONTRACT.md` for exact integration parameters. Once active, the API will bind to `http://localhost:8000/`.
 
-### 2. Frontend Setup (Next.js)
+### 2. Frontend Application (Next.js)
 
-The frontend is a high-performance Next.js application styled with Tailwind CSS and Framer Motion.
+The frontend leverages React 19, Next.js 16 (Turbopack), and Framer Motion for a fluid, hardware-accelerated monitoring experience.
 
-**Prerequisites:** Node.js 18.17+, npm.
+**Prerequisites:** Node.js 18.17+
 
 ```bash
-# 1. Navigate to the frontend directory
+# Navigate to frontend directory
 cd frontend
 
-# 2. Install NPM dependencies
+# Hydrate node_modules dependencies
 npm install
 
-# 3. Start the Turbopack development server
+# Initialize the Turbopack compiler
 npm run dev
 ```
 
-The application will initialize on `http://localhost:3000/`.
-
-## Core Components
-1. **Command Center Dashboard:** Real-time telemetry, spatial mapping, and aggregate risk metrics.
-2. **Live Monitoring:** Dynamic camera feeds with integrated computer vision inferences for localized anomalies.
-3. **Risk Analysis:** AI-driven reporting utilizing predictive Bayesian models for cargo and route evaluation.
-4. **Alerts Intelligence Hub:** Priority-based alert feed with explainable AI analysis and recommended rapid responses.
+Build processes natively optimize images and components. The frontend UI will initialize on `http://localhost:3000/`.
