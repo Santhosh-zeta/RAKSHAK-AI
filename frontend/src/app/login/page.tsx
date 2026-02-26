@@ -88,7 +88,9 @@ export default function AuthPage() {
 
                 <div className="relative z-10 max-w-md w-full">
                     <div className="flex items-center gap-3 mb-10">
-                        <Image src="/logo.png" alt="Rakshak AI Logo" width={56} height={56} className="drop-shadow-sm" />
+                        <div className="w-12 h-12 bg-sky-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                            <Shield size={26} />
+                        </div>
                         <span className="text-xl font-bold tracking-widest text-slate-800 uppercase">RAKSHAK AI</span>
                     </div>
 
