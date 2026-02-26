@@ -251,11 +251,11 @@ export async function getFleetData(): Promise<FleetVehicle[]> {
             });
         }
 
-        return fleet.length > 0 ? fleet : SEED_FLEET;
+        return fleet;
 
     } catch (e) {
-        console.warn('[RAKSHAK] Backend unreachable — using seed data.', e);
-        return SEED_FLEET;
+        console.warn('[RAKSHAK] Backend unreachable.', e);
+        return [];
     }
 }
 
@@ -281,11 +281,11 @@ export async function getAlerts(): Promise<Alert[]> {
             };
         }).sort((a: any, b: any) => (a.time > b.time ? -1 : 1));
 
-        return mapped.length > 0 ? mapped : SEED_ALERTS;
+        return mapped;
 
     } catch (e) {
-        console.warn('[RAKSHAK] Alerts API unreachable — using seed data.', e);
-        return SEED_ALERTS;
+        console.warn('[RAKSHAK] Alerts API unreachable.', e);
+        return [];
     }
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { FleetVehicle, SEED_FLEET } from '@/services/apiClient';
+import { FleetVehicle } from '@/services/apiClient';
 
 interface MapViewProps {
     fleet: FleetVehicle[];
@@ -44,7 +44,7 @@ const riskColor = (level: string) =>
     level === 'Critical' ? '#dc2626' : level === 'High' ? '#ef4444' : level === 'Medium' ? '#f59e0b' : '#10b981';
 
 export default function MapView({ fleet }: MapViewProps) {
-    const displayFleet = fleet.length > 0 ? fleet : SEED_FLEET;
+    const displayFleet = fleet;
     const [activeVehicle, setActiveVehicle] = useState<string | null>(null);
     const [showZones, setShowZones] = useState(true);
     const [tick, setTick] = useState(0);

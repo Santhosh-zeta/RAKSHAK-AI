@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
-import { getAlerts, resolveAlert, EnhancedAlert, SEED_FLEET } from '@/services/apiClient';
+import { getAlerts, resolveAlert, getFleetData, EnhancedAlert, FleetVehicle } from '@/services/apiClient';
 import AuthGuard from '@/components/AuthGuard';
 import dynamic from 'next/dynamic';
 
@@ -53,9 +53,11 @@ export default function Alerts() {
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
     const [mapModalAlert, setMapModalAlert] = useState<EnhancedAlert | null>(null);
 
+    const [fleetData, setFleetData] = useState<FleetVehicle[]>([]);
+
     // A3: auto-refresh every 30s
     const fetchAlerts = useCallback(async () => {
-        const data = await getAlerts();
+        const [data, fleet] = await Promise.all([getAlerts(), getFleetData()]);
         const enriched: EnhancedAlert[] = data.map(a => ({
             ...a,
             aiExplanation: a.aiExplanation || AI_EXPLANATIONS[a.level] || AI_EXPLANATIONS['Low'],
@@ -63,6 +65,7 @@ export default function Alerts() {
             type: a.type || 'System',
         }));
         setAlerts(enriched);
+        setFleetData(fleet);
         setLastRefresh(new Date());
     }, []);
 
@@ -72,10 +75,10 @@ export default function Alerts() {
         return () => clearInterval(interval);
     }, [fetchAlerts]);
 
-    // A2: Get real vehicle location from SEED_FLEET matched by truckId
+    // A2: Get real vehicle location from live fleet matched by truckId
     const getLocation = (truckId?: string) => {
         if (!truckId) return null;
-        return SEED_FLEET.find(v => v.info.id === truckId)?.location ?? null;
+        return fleetData.find(v => v.info.id === truckId)?.location ?? null;
     };
 
     // A6: sort handler

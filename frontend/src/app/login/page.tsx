@@ -51,12 +51,12 @@ export default function AuthPage() {
     };
 
     const handleTestLogin = async () => {
-        setLoginForm({ username: 'admin', password: 'password123' }); // Adjust if your backend expects different test credentials
+        setLoginForm({ username: 'admin', password: 'Rakshak@123' }); // Updated credentials
         setError('');
         setBusy(true);
-        const result = await login('admin', 'password123'); // Adjust to known credentials
+        const result = await login('admin', 'Rakshak@123');
         setBusy(false);
-        if (!result.ok) setError(result.error || 'Test Login failed. Ensure "admin" exists with "password123" or replace these credentials.');
+        if (!result.ok) setError(result.error || 'Test Login failed. Ensure "admin" exists with "Rakshak@123" or replace these credentials.');
     };
 
     // ── Register submit ──────────────────────────────────────────────────────────
