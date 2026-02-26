@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import TruckViewSet, TripViewSet, GPSLogViewSet, AlertViewSet
-from .agent_views import VisionEventView, FusionRiskView, SimulationView, BehaviourAnalysisView
+from .agent_views import VisionEventView, FusionRiskView, SimulationView, BehaviourAnalysisView, DecisionView
 
 router = DefaultRouter()
 router.register(r'trucks', TruckViewSet)
@@ -15,4 +15,5 @@ urlpatterns = [
     path('agents/fusion-risk/', FusionRiskView.as_view(), name='fusion_risk'),
     path('agents/simulate/', SimulationView.as_view(), name='simulate'),
     path('agents/behaviour-analysis/', BehaviourAnalysisView.as_view(), name='behaviour_analysis'),
+    path('agents/decision/', DecisionView.as_view(), name='decision'),
 ]
