@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
 import { getFleetData, getAlerts, triggerSimulation, FleetVehicle, Alert } from '@/services/apiClient';
 import { useToast } from '@/components/Toast';
@@ -41,6 +43,17 @@ const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
     Alert: { color: '#dc2626', bg: 'rgba(220,38,38,0.08)' },
     'In Transit': { color: '#0284c7', bg: 'rgba(2,132,199,0.08)' },
     Scheduled: { color: '#9333ea', bg: 'rgba(147,51,234,0.08)' },
+};
+
+// Animation Variants
+const staggerContainer = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+};
+
+const fadeUp = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 100, damping: 15 } }
 };
 
 export default function Dashboard() {
@@ -115,7 +128,7 @@ export default function Dashboard() {
                 <div className={styles.loaderCore}>
                     <div className={styles.loaderRing}></div>
                     <div className={styles.loaderRing2}></div>
-                    <ShieldAlert size={32} className={styles.loaderIcon} />
+                    <Image src="/logo.png" alt="Rakshak Logo" width={40} height={40} className={styles.loaderIcon} />
                 </div>
                 <h2>Rakshak Command Center Starting...</h2>
                 <div className={styles.loadingBar}><div className={styles.loadingFill}></div></div>
@@ -145,10 +158,15 @@ export default function Dashboard() {
         : [];
 
     return (
-        <div className={styles.dashboardContainer}>
+        <motion.div
+            className={styles.dashboardContainer}
+            variants={staggerContainer}
+            initial="hidden"
+            animate="show"
+        >
             {ToastElement /* G2 */}
 
-            <div className={styles.topControls}>
+            <motion.div variants={fadeUp} className={styles.topControls}>
                 <h1 className={styles.pageTitle}>Fleet Command <span>/ Live Intel</span></h1>
                 <div className={styles.filterGroup}>
                     {(['All', 'In Transit', 'High Risk'] as const).map(filter => (
@@ -172,12 +190,12 @@ export default function Dashboard() {
                     {demoStatus === 'running' ? <Activity size={16} className={styles.spinIcon} /> : demoStatus === 'done' ? <CheckCircle2 size={16} /> : <Zap size={16} />}
                     {demoStatus === 'running' ? 'Triggering...' : demoStatus === 'done' ? 'Scenario Active!' : '🚨 Trigger Demo'}
                 </button>
-            </div>
+            </motion.div>
 
             {/* Stats Grid */}
-            <section className={styles.statsGrid}>
+            <motion.section variants={fadeUp} className={styles.statsGrid}>
                 {/* Active Fleet */}
-                <div className={styles.statCard}>
+                <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
                     <div className={styles.statHeader}>
                         <div className={styles.statIconWrapper}><Truck size={20} className={styles.iconAccent} /></div>
                         <span className={styles.statLabel}>Active Consignments</span>
@@ -190,10 +208,10 @@ export default function Dashboard() {
                         <ArrowUpRight size={14} className={styles.iconGood} />
                         <span>{fleet.filter(v => v.status === 'Alert').length} on alert, {fleet.filter(v => v.status === 'In Transit').length} in transit</span>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Critical Threats */}
-                <div className={`${styles.statCard} ${highRiskCount > 0 ? styles.statCardWarning : ''}`}>
+                <motion.div whileHover={{ scale: 1.02 }} className={`${styles.statCard} ${highRiskCount > 0 ? styles.statCardWarning : ''}`}>
                     <div className={styles.statHeader}>
                         <div className={styles.statIconWrapperWarning}>
                             <ShieldAlert size={20} className={highRiskCount > 0 ? styles.iconHigh : styles.iconSafe} />
@@ -207,10 +225,10 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className={styles.statFooter}><span>Real-time AI behavioral analysis active</span></div>
-                </div>
+                </motion.div>
 
                 {/* Assets Monitored — D8: computed from real data */}
-                <div className={styles.statCard}>
+                <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
                     <div className={styles.statHeader}>
                         <div className={styles.statIconWrapper}><Banknote size={20} className={styles.iconAccent} /></div>
                         <span className={styles.statLabel}>Assets Monitored</span>
@@ -227,10 +245,10 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className={styles.statFooter}><span>{operationalPct}% fleet operational efficiency</span></div>
-                </div>
+                </motion.div>
 
                 {/* Fleet Avg Risk Gauge */}
-                <div className={styles.statCard}>
+                <motion.div whileHover={{ scale: 1.02 }} className={styles.statCard}>
                     <div className={styles.statHeader}>
                         <div className={styles.statIconWrapper}><BarChart3 size={20} className={styles.iconAccent} /></div>
                         <span className={styles.statLabel}>Fleet Avg Risk</span>
@@ -255,12 +273,12 @@ export default function Dashboard() {
                             {avgRisk >= 70 ? '🔴 HIGH THREAT' : avgRisk >= 45 ? '🟡 MODERATE RISK' : '🟢 LOW RISK'}
                         </span>
                     </div>
-                </div>
-            </section>
+                </motion.div>
+            </motion.section>
 
-            <div className={styles.mainGrid}>
+            <motion.div variants={staggerContainer} className={styles.mainGrid}>
                 {/* Map — D12: taller via CSS */}
-                <section className={styles.mapSection}>
+                <motion.section variants={fadeUp} className={styles.mapSection}>
                     <div className={styles.panelHeader}>
                         <div className={styles.headerLeft}>
                             <MapPin className={styles.iconAccent} />
@@ -292,10 +310,10 @@ export default function Dashboard() {
                             </div>
                         </div>
                     </div>
-                </section>
+                </motion.section>
 
                 {/* Alerts Feed — D3, D4, D5: clickable, color-coded, type badge */}
-                <section className={styles.alertsPanel}>
+                <motion.section variants={fadeUp} className={styles.alertsPanel}>
                     <div className={styles.panelHeader}>
                         <div className={styles.headerLeft}>
                             <Terminal className={styles.iconHigh} />
@@ -328,11 +346,11 @@ export default function Dashboard() {
                             ))
                         )}
                     </div>
-                </section>
-            </div>
+                </motion.section>
+            </motion.div>
 
             {/* Fleet Telemetry Table — D1, D6, D7 */}
-            <section className={styles.dataGridSection}>
+            <motion.section variants={fadeUp} className={styles.dataGridSection}>
                 <div className={styles.panelHeader}>
                     <div className={styles.headerLeft}>
                         <BarChart3 className={styles.iconAccent} />
@@ -349,8 +367,8 @@ export default function Dashboard() {
                                 <th>ROUTE VECTOR</th>
                                 <th>CARGO YIELD</th>
                                 <th>AI RISK SCORE</th>
-                                <th>LAST PING</th> {/* D1 */}
-                                <th>ACTION</th> {/* D6 */}
+                                <th>LAST PING</th>
+                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -380,8 +398,7 @@ export default function Dashboard() {
                                                 <span className={styles.riskBarText}>{vehicle.risk.score}/100</span>
                                             </div>
                                         </td>
-                                        <td className={styles.colPing}>{pingLabel}</td> {/* D1 */}
-                                        {/* D6: View Details */}
+                                        <td className={styles.colPing}>{pingLabel}</td>
                                         <td>
                                             <Link href="/alerts" className={styles.viewDetailsBtn} aria-label={`View details for ${vehicle.info.id}`}>
                                                 Details →
@@ -393,7 +410,7 @@ export default function Dashboard() {
                         </tbody>
                     </table>
                 </div>
-            </section>
-        </div>
+            </motion.section>
+        </motion.div>
     );
 }

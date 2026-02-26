@@ -1,9 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { motion, useSpring, useTransform } from 'framer-motion';
 import styles from './page.module.css';
 import { Shield, BrainCircuit, Monitor, HardHat, Shirt, Pill, Car, CheckCircle2, Box, History } from 'lucide-react';
 import { ROUTE_OPTIONS, CARGO_TYPE_OPTIONS, computeRiskReport, RiskReportResult } from '@/services/riskUtils';
+
+const staggerContainer = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+};
+
+const fadeUp = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 100, damping: 15 } }
+};
 
 const CARGO_ICONS: Record<string, React.ElementType> = {
     Electronics: Monitor, Pharmaceuticals: Pill, Automotive: Car,
@@ -26,6 +37,17 @@ export default function RiskAnalysis() {
     const [isPredicting, setIsPredicting] = useState(false);
     const [result, setResult] = useState<RiskReportResult | null>(null);
     const [history, setHistory] = useState<HistoryEntry[]>([]); // R5
+
+    // Animated Gauge State
+    const animatedScore = useSpring(0, { stiffness: 60, damping: 15 });
+    const animatedDasharray = useTransform(animatedScore, (latest) => `${(latest / 100) * 157.08} 157.08`);
+    const displayScore = useTransform(animatedScore, (latest) => Math.round(latest));
+
+    // Reset gauge when result changes
+    useEffect(() => {
+        if (result) animatedScore.set(result.score);
+        else animatedScore.set(0);
+    }, [result, animatedScore]);
 
     // R1: No fake setTimeout — instant computation via shared utility (R2)
     const handlePredict = async (e: React.FormEvent) => {
@@ -78,17 +100,17 @@ export default function RiskAnalysis() {
     const CARGO_COLS = 3; // R7: 3-col on desktop, 2-col on mobile via CSS
 
     return (
-        <div className={styles.container}>
-            <div className={styles.header}>
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className={styles.container}>
+            <motion.div variants={fadeUp} className={styles.header}>
                 <div>
                     <h1 className={styles.title}>Risk Analysis Engine</h1>
                     <p className={styles.subtitle}>AI-powered pre-trip risk assessment</p>
                 </div>
-            </div>
+            </motion.div>
 
             <div className={styles.mainGrid}>
                 {/* Input Form */}
-                <section className={styles.formSection}>
+                <motion.section variants={fadeUp} className={styles.formSection}>
                     <form onSubmit={handlePredict} className={styles.riskForm}>
                         {/* Route Selection — R3: shared ROUTE_OPTIONS */}
                         <div className={styles.formGroup}>
@@ -112,7 +134,9 @@ export default function RiskAnalysis() {
                                 {CARGO_TYPE_OPTIONS.map(cargo => {
                                     const Icon = CARGO_ICONS[cargo.id] ?? Box;
                                     return (
-                                        <button
+                                        <motion.button
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
                                             key={cargo.id}
                                             type="button"
                                             className={`${styles.cargoBtn} ${cargoType === cargo.id ? styles.cargoBtnActive : ''}`}
@@ -122,7 +146,7 @@ export default function RiskAnalysis() {
                                         >
                                             <Icon size={20} />
                                             <span>{cargo.label}</span>
-                                        </button>
+                                        </motion.button>
                                     );
                                 })}
                             </div>
@@ -133,7 +157,9 @@ export default function RiskAnalysis() {
                             <label className={styles.formLabel}>Time of Travel</label>
                             <div className={styles.timeGroup}>
                                 {(['Day', 'Night'] as const).map(t => (
-                                    <button
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
                                         key={t}
                                         type="button"
                                         className={`${styles.timeBtn} ${time === t ? styles.timeBtnActive : ''}`}
@@ -142,7 +168,7 @@ export default function RiskAnalysis() {
                                         aria-pressed={time === t}
                                     >
                                         {t === 'Day' ? '☀️' : '🌙'} {t}
-                                    </button>
+                                    </motion.button>
                                 ))}
                             </div>
                         </div>
@@ -173,7 +199,9 @@ export default function RiskAnalysis() {
                             </div>
                         </div>
 
-                        <button
+                        <motion.button
+                            whileHover={isPredicting ? {} : { scale: 1.01, y: -2 }}
+                            whileTap={isPredicting ? {} : { scale: 0.99 }}
                             type="submit"
                             className={styles.predictBtn}
                             disabled={isPredicting}
@@ -181,30 +209,29 @@ export default function RiskAnalysis() {
                         >
                             <Shield size={18} />
                             {isPredicting ? 'Analyzing...' : 'Predict Risk Score'}
-                        </button>
+                        </motion.button>
                     </form>
-                </section>
+                </motion.section>
 
                 {/* Results */}
-                <section className={styles.resultSection}>
-                    {result ? (<>
+                <motion.section variants={fadeUp} className={styles.resultSection}>
+                    {result ? (<motion.div variants={staggerContainer} initial="hidden" animate="show" key={result.timestamp}>
                         {/* Gauge — R4: corrected arc circumference π*r = π*15 ≈ 47.12 */}
-                        <div className={styles.gaugeWrapper}>
+                        <motion.div variants={fadeUp} className={styles.gaugeWrapper}>
                             <svg viewBox="0 0 120 70" className={styles.gaugeSvg}>
                                 <path d="M10 62 A 50 50 0 0 1 110 62" fill="none" stroke="#e2e8f0" strokeWidth="10" strokeLinecap="round" />
-                                <path
+                                <motion.path
                                     d="M10 62 A 50 50 0 0 1 110 62" fill="none"
                                     stroke={riskColor(result.score)} strokeWidth="10" strokeLinecap="round"
-                                    strokeDasharray={`${(result.score / 100) * 157.08} 157.08`} // π*50 corrected
-                                    style={{ transition: 'stroke-dasharray 1s cubic-bezier(0.4,0,0.2,1)' }}
+                                    style={{ strokeDasharray: animatedDasharray, filter: `drop-shadow(0 0 4px ${riskColor(result.score)})` }}
                                 />
-                                <text x="60" y="55" textAnchor="middle" fontSize="22" fontWeight="900" fill={riskColor(result.score)}>{result.score}</text>
+                                <motion.text x="60" y="55" textAnchor="middle" fontSize="22" fontWeight="900" fill={riskColor(result.score)}>{displayScore}</motion.text>
                                 <text x="60" y="68" textAnchor="middle" fontSize="8" fill="#94a3b8">{result.level.toUpperCase()} RISK</text>
                             </svg>
-                        </div>
+                        </motion.div>
 
                         {/* Breakdown bars */}
-                        <div className={styles.breakdownSection}>
+                        <motion.div variants={fadeUp} className={styles.breakdownSection}>
                             <h3 className={styles.breakdownTitle}>Risk Factor Breakdown</h3>
                             {result.breakdown.map(item => (
                                 <div key={item.label} className={styles.breakdownItem}>
@@ -220,50 +247,50 @@ export default function RiskAnalysis() {
                                     </div>
                                 </div>
                             ))}
-                        </div>
+                        </motion.div>
 
                         {/* Risk Reasons */}
                         {result.reasons.length > 0 && (
-                            <div className={styles.reasonsSection}>
+                            <motion.div variants={fadeUp} className={styles.reasonsSection}>
                                 <h3 className={styles.breakdownTitle}>AI Risk Reasons</h3>
                                 {result.reasons.map((r, i) => (
                                     <div key={i} className={styles.reasonItem}>
                                         <span style={{ color: riskColor(result.score) }}>⚠</span> {r}
                                     </div>
                                 ))}
-                            </div>
+                            </motion.div>
                         )}
 
                         {/* Danger Zones */}
                         {result.dangerZones.length > 0 && (
-                            <div className={styles.dangerZones}>
+                            <motion.div variants={fadeUp} className={styles.dangerZones}>
                                 <h3 className={styles.breakdownTitle} style={{ color: '#ef4444' }}>⚠ Danger Zones on Route</h3>
                                 {result.dangerZones.map((z, i) => (
                                     <div key={i} className={styles.dangerZoneItem}>{z}</div>
                                 ))}
-                            </div>
+                            </motion.div>
                         )}
 
-                        <p className={styles.reportTimestamp}>Generated: {result.timestamp}</p>
-                    </>) : (
-                        <div className={styles.emptyResult}>
+                        <motion.p variants={fadeUp} className={styles.reportTimestamp}>Generated: {result.timestamp}</motion.p>
+                    </motion.div>) : (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.emptyResult}>
                             <BrainCircuit size={48} style={{ color: '#cbd5e1' }} />
                             <p>Fill in the parameters and run the prediction engine.</p>
-                        </div>
+                        </motion.div>
                     )}
-                </section>
+                </motion.section>
             </div>
 
             {/* R5: Prediction History */}
             {history.length > 0 && (
-                <section className={styles.historySection}>
+                <motion.section variants={fadeUp} className={styles.historySection}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                         <History size={18} style={{ color: '#64748b' }} />
                         <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#334155' }}>Prediction History</h3>
                     </div>
                     <div className={styles.historyGrid}>
                         {history.map((entry, i) => (
-                            <div key={i} className={styles.historyCard}>
+                            <motion.div variants={fadeUp} key={i} className={styles.historyCard}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                                     <span style={{ fontWeight: 800, fontSize: '1.5rem', color: riskColor(entry.result.score) }}>
                                         {entry.result.score}
@@ -274,11 +301,11 @@ export default function RiskAnalysis() {
                                 <div style={{ marginTop: 4, fontSize: '0.72rem', fontWeight: 800, color: riskColor(entry.result.score) }}>
                                     {entry.result.level.toUpperCase()} RISK
                                 </div>
-                            </div>
+                            </motion.div>
                         ))}
                     </div>
-                </section>
+                </motion.section>
             )}
-        </div>
+        </motion.div>
     );
 }

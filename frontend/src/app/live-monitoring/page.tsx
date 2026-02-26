@@ -1,12 +1,26 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
 import {
     FileText, MapPin, Package, Clock, Banknote, Shield, AlertTriangle,
     CheckCircle2, TrendingUp, ChevronRight, Printer
 } from 'lucide-react';
 import { ROUTE_OPTIONS, CARGO_TYPE_OPTIONS, computeRiskReport, RiskReportResult } from '@/services/riskUtils'; // J2: shared constants
+
+// Animation Variants
+const staggerContainer = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+};
+
+const fadeUp = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 100, damping: 15 } }
+};
+
 
 export default function JourneyReport() {
     const [route, setRoute] = useState(ROUTE_OPTIONS[0].label); // J2
@@ -79,9 +93,9 @@ export default function JourneyReport() {
         score >= 75 ? '#dc2626' : score >= 55 ? '#f59e0b' : score >= 35 ? '#3b82f6' : '#10b981';
 
     return (
-        <div className={styles.container}>
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className={styles.container}>
             {/* J1: Clear breadcrumb clarifying what this page is */}
-            <div className={styles.header}>
+            <motion.div variants={fadeUp} className={styles.header}>
                 <div className={styles.headerTop}>
                     <div>
                         <div className={styles.breadcrumb}>
@@ -95,11 +109,11 @@ export default function JourneyReport() {
                         </p>
                     </div>
                 </div>
-            </div>
+            </motion.div>
 
             <div className={styles.mainLayout}>
                 {/* Left: Form */}
-                <section className={styles.formSection}>
+                <motion.section variants={fadeUp} className={styles.formSection}>
                     <div className={styles.sectionTitle}><FileText size={18} /> Journey Parameters</div>
 
                     <form onSubmit={handleGenerate} className={styles.form} noValidate>
@@ -140,7 +154,9 @@ export default function JourneyReport() {
                             <label className={styles.label}><Clock size={14} /> Time of Travel</label>
                             <div className={styles.timeGroup}>
                                 {(['Day', 'Night'] as const).map(t => (
-                                    <button
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
                                         key={t} type="button"
                                         className={`${styles.timeBtn} ${travelTime === t ? styles.timeBtnActive : ''}`}
                                         onClick={() => setTravelTime(t)}
@@ -148,7 +164,7 @@ export default function JourneyReport() {
                                         aria-pressed={travelTime === t}
                                     >
                                         {t === 'Day' ? '☀️' : '🌙'} {t}
-                                    </button>
+                                    </motion.button>
                                 ))}
                             </div>
                         </div>
@@ -190,7 +206,9 @@ export default function JourneyReport() {
                             </div>
                         )}
 
-                        <button
+                        <motion.button
+                            whileHover={isGenerating ? {} : { scale: 1.02, y: -2 }}
+                            whileTap={isGenerating ? {} : { scale: 0.98 }}
                             type="submit"
                             className={styles.generateBtn}
                             disabled={isGenerating}
@@ -198,132 +216,154 @@ export default function JourneyReport() {
                         >
                             <Shield size={18} />
                             {isGenerating ? 'Generating...' : 'Generate Risk Report'}
-                        </button>
+                        </motion.button>
                     </form>
-                </section>
+                </motion.section>
 
                 {/* Right: Loading / Report */}
-                <section className={styles.reportSection}>
-                    {isGenerating && (
-                        <div className={styles.loadingContainer}>
-                            <div className={styles.radialLoader}></div>
-                            <h3>Generating Report</h3>
-                            {LOADING_STEPS.map((step, i) => (
-                                <div
-                                    key={i}
-                                    className={`${styles.loadingStep} ${loadingStep > i ? styles.stepDone : loadingStep === i ? styles.stepActive : ''}`}
-                                    style={{ animationDelay: `${i * 0.15}s`, animationFillMode: 'both' }} // J9: correct fill-mode
-                                >
-                                    {loadingStep > i ? '✓' : loadingStep === i + 1 ? '⚡' : '○'} {step}
+                <motion.section variants={fadeUp} className={styles.reportSection}>
+                    <AnimatePresence mode="wait">
+                        {isGenerating && (
+                            <motion.div
+                                key="loading"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className={styles.loadingContainer}
+                            >
+                                <div className={styles.radialLoader}>
+                                    <Image src="/logo.png" alt="Rakshak Logo" width={24} height={24} className={styles.loaderIcon} />
                                 </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {!isGenerating && !report && (
-                        <div className={styles.emptyReport}>
-                            <FileText size={56} style={{ color: '#cbd5e1' }} />
-                            <h3>Report will appear here</h3>
-                            <p>Configure journey parameters and click Generate.</p>
-                        </div>
-                    )}
-
-                    {!isGenerating && report && (
-                        <div className={styles.report}>
-                            {/* J7: Report timestamp */}
-                            <div className={styles.reportHeader}>
-                                <div>
-                                    <div className={styles.reportTimestamp}>Generated: {report.timestamp}</div>
-                                    <h2 className={styles.reportTitle}>Risk Assessment Report</h2>
-                                    <div className={styles.reportMeta}>{route} · {cargo} · {travelTime}</div>
-                                </div>
-                                {/* J3: Print button */}
-                                <button
-                                    onClick={handlePrint}
-                                    className={styles.printBtn}
-                                    aria-label="Print or download report"
-                                >
-                                    <Printer size={16} /> Print / Save
-                                </button>
-                            </div>
-
-                            {/* Risk Score */}
-                            <div className={styles.scoreCard} style={{ borderLeft: `4px solid ${riskColor(report.score)}` }}>
-                                <div>
-                                    <div className={styles.riskLevelLabel} style={{ color: riskColor(report.score) }}>
-                                        {report.level.toUpperCase()} RISK
-                                    </div>
-                                    <div className={styles.riskScoreNumber} style={{ color: riskColor(report.score) }}>
-                                        {report.score}<span style={{ fontSize: '1rem', fontWeight: 600 }}>/100</span>
-                                    </div>
-                                </div>
-                                <div className={styles.scoreBarWrap}>
-                                    <div className={styles.scoreBarBg}>
-                                        <div className={styles.scoreBarFill}
-                                            style={{ width: `${report.score}%`, background: `linear-gradient(90deg, ${riskColor(report.score)}80, ${riskColor(report.score)})` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Breakdown */}
-                            <div className={styles.breakdownSection}>
-                                <h3 className={styles.sectionHead}><TrendingUp size={16} /> Risk Breakdown</h3>
-                                {report.breakdown.map(item => (
-                                    <div key={item.label} className={styles.breakdownRow}>
-                                        <span className={styles.breakdownLabel}>{item.label}</span>
-                                        <div className={styles.breakdownBar}>
-                                            <div className={styles.breakdownFill}
-                                                style={{ width: `${item.score}%`, background: riskColor(item.score) }}
-                                            />
-                                        </div>
-                                        <span className={styles.breakdownScore} style={{ color: riskColor(item.score) }}>{item.score}</span>
-                                        <span className={styles.weightTag}>×{item.weight}%</span>
+                                <h3>Generating Report</h3>
+                                {LOADING_STEPS.map((step, i) => (
+                                    <div
+                                        key={i}
+                                        className={`${styles.loadingStep} ${loadingStep > i ? styles.stepDone : loadingStep === i ? styles.stepActive : ''}`}
+                                        style={{ animationDelay: `${i * 0.15}s`, animationFillMode: 'both' }} // J9: correct fill-mode
+                                    >
+                                        {loadingStep > i ? '✓' : loadingStep === i + 1 ? '⚡' : '○'} {step}
                                     </div>
                                 ))}
-                            </div>
+                            </motion.div>
+                        )}
 
-                            {/* J4: Personalised recommendations */}
-                            {report.reasons.length > 0 && (
-                                <div className={styles.recSection}>
-                                    <h3 className={styles.sectionHead}><Shield size={16} /> AI Recommendations</h3>
-                                    {report.reasons.map((r, i) => (
-                                        <div key={i} className={styles.recItem}>
-                                            <ChevronRight size={13} style={{ color: riskColor(report.score), flexShrink: 0 }} />
-                                            {r}
+                        {!isGenerating && !report && (
+                            <motion.div
+                                key="empty"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className={styles.emptyReport}
+                            >
+                                <FileText size={56} style={{ color: '#cbd5e1' }} />
+                                <h3>Report will appear here</h3>
+                                <p>Configure journey parameters and click Generate.</p>
+                            </motion.div>
+                        )}
+
+                        {!isGenerating && report && (
+                            <motion.div
+                                key="report"
+                                variants={staggerContainer}
+                                initial="hidden"
+                                animate="show"
+                                className={styles.report}
+                            >
+                                {/* J7: Report timestamp */}
+                                <motion.div variants={fadeUp} className={styles.reportHeader}>
+                                    <div>
+                                        <div className={styles.reportTimestamp}>Generated: {report.timestamp}</div>
+                                        <h2 className={styles.reportTitle}>Risk Assessment Report</h2>
+                                        <div className={styles.reportMeta}>{route} · {cargo} · {travelTime}</div>
+                                    </div>
+                                    {/* J3: Print button */}
+                                    <button
+                                        onClick={handlePrint}
+                                        className={styles.printBtn}
+                                        aria-label="Print or download report"
+                                    >
+                                        <Printer size={16} /> Print / Save
+                                    </button>
+                                </motion.div>
+
+                                {/* Risk Score */}
+                                <div className={styles.scoreCard} style={{ borderLeft: `4px solid ${riskColor(report.score)}` }}>
+                                    <div>
+                                        <div className={styles.riskLevelLabel} style={{ color: riskColor(report.score) }}>
+                                            {report.level.toUpperCase()} RISK
+                                        </div>
+                                        <div className={styles.riskScoreNumber} style={{ color: riskColor(report.score) }}>
+                                            {report.score}<span style={{ fontSize: '1rem', fontWeight: 600 }}>/100</span>
+                                        </div>
+                                    </div>
+                                    <div className={styles.scoreBarWrap}>
+                                        <div className={styles.scoreBarBg}>
+                                            <div className={styles.scoreBarFill}
+                                                style={{ width: `${report.score}%`, background: `linear-gradient(90deg, ${riskColor(report.score)}80, ${riskColor(report.score)})` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Breakdown */}
+                                <motion.div variants={fadeUp} className={styles.breakdownSection}>
+                                    <h3 className={styles.sectionHead}><TrendingUp size={16} /> Risk Breakdown</h3>
+                                    {report.breakdown.map(item => (
+                                        <div key={item.label} className={styles.breakdownRow}>
+                                            <span className={styles.breakdownLabel}>{item.label}</span>
+                                            <div className={styles.breakdownBar}>
+                                                <div className={styles.breakdownFill}
+                                                    style={{ width: `${item.score}%`, background: riskColor(item.score) }}
+                                                />
+                                            </div>
+                                            <span className={styles.breakdownScore} style={{ color: riskColor(item.score) }}>{item.score}</span>
+                                            <span className={styles.weightTag}>×{item.weight}%</span>
                                         </div>
                                     ))}
-                                </div>
-                            )}
+                                </motion.div>
 
-                            {/* J8: Danger zones with mini visual indicator */}
-                            {report.dangerZones.length > 0 && (
-                                <div className={styles.dangerSection}>
-                                    <h3 className={styles.sectionHead} style={{ color: '#ef4444' }}>
-                                        <AlertTriangle size={16} /> Danger Zones on Route
-                                    </h3>
-                                    {report.dangerZones.map((z, i) => (
-                                        <div key={i} className={styles.dangerZoneItem}>
-                                            {/* J8: mini inline SVG threat indicator */}
-                                            <svg width="12" height="12" viewBox="0 0 12 12" style={{ flexShrink: 0 }}>
-                                                <circle cx="6" cy="6" r="5" fill="rgba(239,68,68,0.15)" stroke="#ef4444" strokeWidth="1.5" />
-                                                <circle cx="6" cy="6" r="2" fill="#ef4444" />
-                                            </svg>
-                                            {z}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                {/* J4: Personalised recommendations */}
+                                {report.reasons.length > 0 && (
+                                    <motion.div variants={fadeUp} className={styles.recSection}>
+                                        <h3 className={styles.sectionHead}><Shield size={16} /> AI Recommendations</h3>
+                                        {report.reasons.map((r, i) => (
+                                            <div key={i} className={styles.recItem}>
+                                                <ChevronRight size={13} style={{ color: riskColor(report.score), flexShrink: 0 }} />
+                                                {r}
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
 
-                            {report.score < 35 && (
-                                <div className={styles.allClearCard}>
-                                    <CheckCircle2 size={20} /> All clear — standard precautions sufficient.
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </section>
+                                {/* J8: Danger zones with mini visual indicator */}
+                                {report.dangerZones.length > 0 && (
+                                    <motion.div variants={fadeUp} className={styles.dangerSection}>
+                                        <h3 className={styles.sectionHead} style={{ color: '#ef4444' }}>
+                                            <AlertTriangle size={16} /> Danger Zones on Route
+                                        </h3>
+                                        {report.dangerZones.map((z, i) => (
+                                            <div key={i} className={styles.dangerZoneItem}>
+                                                {/* J8: mini inline SVG threat indicator */}
+                                                <svg width="12" height="12" viewBox="0 0 12 12" style={{ flexShrink: 0 }}>
+                                                    <circle cx="6" cy="6" r="5" fill="rgba(239,68,68,0.15)" stroke="#ef4444" strokeWidth="1.5" />
+                                                    <circle cx="6" cy="6" r="2" fill="#ef4444" />
+                                                </svg>
+                                                {z}
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+
+                                {report.score < 35 && (
+                                    <motion.div variants={fadeUp} className={styles.allClearCard}>
+                                        <CheckCircle2 size={20} /> All clear — standard precautions sufficient.
+                                    </motion.div>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.section>
             </div>
-        </div>
+        </motion.div>
     );
 }

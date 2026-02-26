@@ -543,6 +543,48 @@
     font-weight: 600;
 }
 
+/* New Animations */
+@keyframes pulseRedRing {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
+}
+
+.criticalPulseBorder {
+    animation: pulseRedRing 2s infinite;
+    border-color: rgba(220, 38, 38, 0.3);
+}
+
+.criticalPulseIcon {
+    animation: pulseScale 1.5s infinite alternate;
+}
+
+@keyframes pulseScale {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.15);
+        filter: drop-shadow(0 0 6px rgba(220, 38, 38, 0.6));
+    }
+}
+
+.expanded {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
+    border-color: var(--color-border) !important;
+    z-index: 10;
+    position: relative;
+}
+
 @media (max-width: 768px) {
     .alertsLayout {
         grid-template-columns: 1fr;

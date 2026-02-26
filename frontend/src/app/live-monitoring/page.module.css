@@ -149,6 +149,7 @@
     background: rgba(2, 132, 199, 0.1) !important;
     border-color: rgba(2, 132, 199, 0.4) !important;
     color: #0284c7 !important;
+    box-shadow: 0 0 10px rgba(2, 132, 199, 0.15);
 }
 
 .generateBtn {
@@ -360,6 +361,7 @@
     display: flex;
     align-items: flex-end;
     gap: 0.25rem;
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', Courier, monospace;
 }
 
 .riskBadge {
@@ -427,6 +429,7 @@
     height: 100%;
     border-radius: 5px;
     transition: width 1s ease;
+    filter: drop-shadow(0 0 4px currentColor);
 }
 
 .breakdownScore {
