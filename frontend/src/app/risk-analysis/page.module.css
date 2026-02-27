@@ -125,7 +125,7 @@
     padding: 1rem;
     border-radius: 8px;
     background: linear-gradient(135deg, var(--color-accent) 0%, #0f4675 100%);
-    color: white;
+    color: var(--color-text-main);
     border: none;
     font-size: 1.1rem;
     font-weight: 700;

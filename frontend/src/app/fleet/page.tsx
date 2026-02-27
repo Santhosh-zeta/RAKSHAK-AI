@@ -337,7 +337,7 @@ export default function FleetPage() {
                                                     </div>
                                                     <div className={styles.tripTime}>
                                                         <Clock size={12} />
-                                                        {new Date(trip.start_time).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                                                        {trip.start_time ? new Date(trip.start_time).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
                                                     </div>
                                                 </motion.div>
                                             );

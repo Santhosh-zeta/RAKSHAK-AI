@@ -390,7 +390,7 @@ export default function Dashboard() {
                                     const pingLabel = i === 0 ? 'Just now' : `${Math.round(i * 47 / 60)}m ago`;
                                     const statusStyle = STATUS_STYLE[vehicle.status] || { color: '#475569', bg: 'rgba(71,85,105,0.08)' };
                                     return (
-                                        <tr key={vehicle.info.id} className={styles.dataRow}>
+                                        <tr key={vehicle.trip_id || `${vehicle.info.id}-${i}`} className={styles.dataRow}>
                                             <td className={styles.colId}>
                                                 <Crosshair size={14} className={styles.iconMuted} />
                                                 {vehicle.info.id}

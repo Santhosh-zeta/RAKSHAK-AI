@@ -164,7 +164,7 @@ export default function MapView({ fleet }: MapViewProps) {
                     const isHighRisk = vehicle.risk.level === 'High' || vehicle.risk.level === 'Critical';
                     return (
                         <g
-                            key={vehicle.info.id}
+                            key={vehicle.trip_id || `${vehicle.info.id}-${i}`}
                             onClick={() => setActiveVehicle(isActive ? null : vehicle.info.id)}
                             style={{ cursor: 'pointer' }}
                         >
