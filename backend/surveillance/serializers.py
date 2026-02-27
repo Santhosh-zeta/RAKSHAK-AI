@@ -97,11 +97,26 @@ class GPSLogSerializer(serializers.ModelSerializer):
         return value
 
 
+
 class AlertSerializer(serializers.ModelSerializer):
+    # Expose the truck plate directly so the frontend can display it without
+    # needing a deep nested serializer.
+    truck_license_plate = serializers.SerializerMethodField(read_only=True)
+    # 'type' is a Python reserved word in some contexts; alias it for the frontend
+    alert_type = serializers.CharField(source='type', read_only=True)
+    # Friendly alias for the frontend that uses d.severity
+    severity = serializers.CharField(read_only=True)
+
     class Meta:
         model  = Alert
         fields = '__all__'
         read_only_fields = ['alert_id', 'timestamp', 'email_sent', 'sms_sent', 'notified_at']
+
+    def get_truck_license_plate(self, obj):
+        try:
+            return obj.trip.truck.license_plate
+        except Exception:
+            return None
 
     def validate_risk_score(self, value):
         if not (0.0 <= value <= 100.0):

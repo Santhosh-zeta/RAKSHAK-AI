@@ -269,15 +269,23 @@ export async function getAlerts(): Promise<Alert[]> {
 
         const mapped = data.map((d: any) => {
             const date = new Date(d.timestamp);
+            // Resolve truck identifier — backend now sends truck_license_plate directly
+            const truckId =
+                d.truck_license_plate ||          // new: direct field from AlertSerializer
+                d.trip?.truck?.license_plate ||   // fallback: deep nested (if serialiser changes)
+                d.truck?.license_plate ||
+                d.truck_id ||
+                d.trip?.truck_id ||
+                undefined;   // undefined → badge simply won't render
             return {
                 id: d.alert_id,
-                truckId: d.trip?.truck?.license_plate || 'TRK-???',
+                truckId,
                 time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 message: d.description,
                 level: d.severity,
                 aiExplanation: d.ai_explanation || '',
                 riskScore: d.risk_score ?? undefined,
-                type: d.alert_type || 'System',
+                type: d.alert_type || d.type || 'System',
             };
         }).sort((a: any, b: any) => (a.time > b.time ? -1 : 1));
 
