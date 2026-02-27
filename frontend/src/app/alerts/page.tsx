@@ -188,7 +188,7 @@ export default function Alerts() {
                         <h1 style={{ fontSize: '2rem', fontWeight: 900, color: '#0f172a', marginBottom: 6 }}>
                             Alert Intelligence Center
                         </h1>
-                        <p style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>
+                        <p style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }} suppressHydrationWarning>
                             Last refreshed: {lastRefresh.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })} · Auto-refreshes every 30s
                         </p> {/* A3 indicator */}
                     </div>
