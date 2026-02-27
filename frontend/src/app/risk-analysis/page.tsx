@@ -5,6 +5,7 @@ import { motion, useSpring, useTransform } from 'framer-motion';
 import styles from './page.module.css';
 import { Shield, BrainCircuit, Monitor, HardHat, Shirt, Pill, Car, CheckCircle2, Box, History, MapPin } from 'lucide-react';
 import { ROUTE_OPTIONS, CARGO_TYPE_OPTIONS, computeRiskReport, RiskReportResult } from '@/services/riskUtils';
+import { AgentRadar, RiskTimeline } from '@/components/charts/ChartComponents';
 import AuthGuard from '@/components/AuthGuard';
 import dynamic from 'next/dynamic';
 
@@ -295,6 +296,15 @@ export default function RiskAnalysis() {
                         )}
 
                         <motion.p variants={fadeUp} className={styles.reportTimestamp}>Generated: {result.timestamp}</motion.p>
+
+                        {/* ── AGENT RADAR CHART ──────────────────────────── */}
+                        <motion.div variants={fadeUp} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '1rem', marginTop: '0.5rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+                            <AgentRadar
+                                data={result.breakdown.map(b => ({ subject: b.label, score: b.score }))}
+                                title="Risk Factor Radar"
+                                size={220}
+                            />
+                        </motion.div>
                     </motion.div>) : (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.emptyResult}>
                             <BrainCircuit size={48} style={{ color: '#cbd5e1' }} />
@@ -311,6 +321,18 @@ export default function RiskAnalysis() {
                         <History size={18} style={{ color: '#64748b' }} />
                         <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#334155' }}>Prediction History</h3>
                     </div>
+
+                    {history.length >= 2 && (
+                        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '1rem', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+                            <RiskTimeline
+                                data={[...history].reverse().map((e, i) => ({ time: `Run ${i + 1}`, risk: e.result.score }))}
+                                title="Score Trend Across Predictions"
+                                height={140}
+                                color={riskColor(history[0].result.score)}
+                            />
+                        </div>
+                    )}
+
                     <div className={styles.historyGrid}>
                         {history.map((entry, i) => (
                             <motion.div variants={fadeUp} key={i} className={styles.historyCard}>

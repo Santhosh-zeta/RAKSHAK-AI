@@ -375,7 +375,7 @@
 
 .actionBtnPrimary {
     background: var(--color-risk-high);
-    color: var(--color-text-main);
+    color: white;
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 8px;

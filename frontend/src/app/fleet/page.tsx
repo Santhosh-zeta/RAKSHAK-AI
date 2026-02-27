@@ -8,6 +8,7 @@ import {
     RefreshCw, ChevronRight, Wifi, AlertTriangle, CheckCircle2, Clock, Plus
 } from 'lucide-react';
 import { getTrucks, getTrips, TruckRecord, TripRecord, FleetVehicle, getFleetData, createTrip } from '@/services/apiClient';
+import { RiskBars, FleetStatusDonut } from '@/components/charts/ChartComponents';
 import styles from './page.module.css';
 import AuthGuard from '@/components/AuthGuard';
 import { useAuth } from '@/context/AuthContext';
@@ -168,7 +169,59 @@ export default function FleetPage() {
                 </div>
             ) : (
                 <>
-                    {/* ─── TRUCKS TAB ───────────────────────────────────────────────── */}
+                    {/* ── FLEET ANALYTICS CHARTS ─── */}
+                    {(trucks.length > 0 || trips.length > 0) && (
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                            gap: '1rem',
+                            marginBottom: '1.25rem',
+                        }}>
+                            {/* Trip Status Donut */}
+                            {trips.length > 0 && (
+                                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem' }}>
+                                    <FleetStatusDonut
+                                        statusCounts={trips.reduce((acc, t) => {
+                                            acc[t.status] = (acc[t.status] || 0) + 1;
+                                            return acc;
+                                        }, {} as Record<string, number>)}
+                                        title="Trip Status Breakdown"
+                                        size={180}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Truck status donut */}
+                            {trucks.length > 0 && (
+                                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem' }}>
+                                    <FleetStatusDonut
+                                        statusCounts={{
+                                            'Active': trucks.filter(t => t.active).length,
+                                            'Inactive': trucks.filter(t => !t.active).length,
+                                        }}
+                                        title="Truck Active Status"
+                                        size={180}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Trip risk scores bar */}
+                            {trips.length > 0 && (
+                                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem' }}>
+                                    <RiskBars
+                                        data={trips.slice(0, 8).map(t => ({
+                                            label: t.truck?.license_plate || t.trip_id.substring(0, 8),
+                                            score: Math.round(t.current_calculated_risk),
+                                        }))}
+                                        title="Trip Risk Scores"
+                                        height={180}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ─── TRUCKS TAB ─────────────────────────────────────────────── */}
                     <AnimatePresence mode="wait">
                         {tab === 'trucks' && (
                             <motion.div key="trucks" variants={stagger} initial="hidden" animate="show" exit={{ opacity: 0 }}>

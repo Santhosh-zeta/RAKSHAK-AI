@@ -32,13 +32,23 @@ class ControlAreaContactSerializer(serializers.ModelSerializer):
 
 class LogisticsCompanySerializer(serializers.ModelSerializer):
     contacts       = ControlAreaContactSerializer(many=True, read_only=True)
-    active_trucks  = serializers.ReadOnlyField()
-    active_trips   = serializers.ReadOnlyField()
+    active_trucks  = serializers.ReadOnlyField()   # trucks with active=True
+    active_trips   = serializers.ReadOnlyField()   # trips with Scheduled/In-Transit
+    total_trucks   = serializers.SerializerMethodField()
+    total_trips    = serializers.SerializerMethodField()
 
     class Meta:
         model  = LogisticsCompany
         fields = '__all__'
         read_only_fields = ['company_id', 'joined_date', 'created_at', 'updated_at']
+
+    def get_total_trucks(self, obj):
+        return obj.trucks.count()
+
+    def get_total_trips(self, obj):
+        from django.apps import apps
+        Trip = apps.get_model('surveillance', 'Trip')
+        return Trip.objects.filter(truck__company=obj).count()
 
 
 class TruckSerializer(serializers.ModelSerializer):

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
 import {
@@ -9,6 +8,7 @@ import {
     CheckCircle2, TrendingUp, ChevronRight, Printer
 } from 'lucide-react';
 import { ROUTE_OPTIONS, CARGO_TYPE_OPTIONS, computeRiskReport, RiskReportResult } from '@/services/riskUtils'; // J2: shared constants
+import { AgentRadar } from '@/components/charts/ChartComponents';
 import AuthGuard from '@/components/AuthGuard';
 import dynamic from 'next/dynamic';
 
@@ -236,7 +236,7 @@ export default function JourneyReport() {
                                 className={styles.loadingContainer}
                             >
                                 <div className={styles.radialLoader}>
-                                    <Image src="/logo.png" alt="Rakshak Logo" width={24} height={24} className={styles.loaderIcon} />
+                                    <Shield size={20} style={{ color: '#0284c7' }} className={styles.loaderIcon} />
                                 </div>
                                 <h3>Generating Report</h3>
                                 {LOADING_STEPS.map((step, i) => (
@@ -291,21 +291,43 @@ export default function JourneyReport() {
                                 </motion.div>
 
                                 {/* Risk Score */}
-                                <div className={styles.scoreCard} style={{ borderLeft: `4px solid ${riskColor(report.score)}` }}>
-                                    <div>
-                                        <div className={styles.riskLevelLabel} style={{ color: riskColor(report.score) }}>
-                                            {report.level.toUpperCase()} RISK
+                                <div className={styles.scoreRow} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                                    <div className={styles.scoreCard} style={{ borderLeft: `4px solid ${riskColor(report.score)}`, height: '100%', margin: 0 }}>
+                                        <div>
+                                            <div className={styles.riskLevelLabel} style={{ color: riskColor(report.score) }}>
+                                                {report.level.toUpperCase()} RISK
+                                            </div>
+                                            <div className={styles.riskScoreNumber} style={{ color: riskColor(report.score) }}>
+                                                {report.score}<span style={{ fontSize: '1rem', fontWeight: 600 }}>/100</span>
+                                            </div>
                                         </div>
-                                        <div className={styles.riskScoreNumber} style={{ color: riskColor(report.score) }}>
-                                            {report.score}<span style={{ fontSize: '1rem', fontWeight: 600 }}>/100</span>
+                                        <div className={styles.scoreBarWrap}>
+                                            <div className={styles.scoreBarBg}>
+                                                <div className={styles.scoreBarFill}
+                                                    style={{ width: `${report.score}%`, background: `linear-gradient(90deg, ${riskColor(report.score)}80, ${riskColor(report.score)})` }}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className={styles.scoreBarWrap}>
-                                        <div className={styles.scoreBarBg}>
-                                            <div className={styles.scoreBarFill}
-                                                style={{ width: `${report.score}%`, background: `linear-gradient(90deg, ${riskColor(report.score)}80, ${riskColor(report.score)})` }}
-                                            />
-                                        </div>
+
+                                    {/* Risk Factor Radar */}
+                                    <div style={{
+                                        background: 'rgba(255,255,255,0.03)',
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        borderRadius: 12,
+                                        padding: '1rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center'
+                                    }}>
+                                        <AgentRadar
+                                            title="Risk Analysis Matrix"
+                                            size={200}
+                                            data={report.breakdown.map(item => ({
+                                                subject: item.label,
+                                                score: item.score
+                                            }))}
+                                        />
                                     </div>
                                 </div>
 

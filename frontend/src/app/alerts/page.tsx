@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
 import { getAlerts, resolveAlert, getFleetData, EnhancedAlert, FleetVehicle } from '@/services/apiClient';
+import { SeverityDonut } from '@/components/charts/ChartComponents';
 import AuthGuard from '@/components/AuthGuard';
 import dynamic from 'next/dynamic';
 
@@ -75,10 +76,38 @@ export default function Alerts() {
         return () => clearInterval(interval);
     }, [fetchAlerts]);
 
-    // A2: Get real vehicle location from live fleet matched by truckId
-    const getLocation = (truckId?: string) => {
-        if (!truckId) return null;
-        return fleetData.find(v => v.info.id === truckId)?.location ?? null;
+    // A2: Get real vehicle location — fuzzy match handles format differences (TR-007 vs TRK-007)
+    const getLocation = (truckId?: string): { lat: number; lng: number } | null => {
+        if (!truckId || fleetData.length === 0) return null;
+
+        // 1. Exact match
+        let vehicle = fleetData.find(v => v.info.id === truckId);
+
+        // 2. Normalised match: strip non-alphanumeric and compare
+        if (!vehicle) {
+            const norm = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
+            vehicle = fleetData.find(v => norm(v.info.id) === norm(truckId));
+        }
+
+        // 3. Partial match: one contains the other's numeric suffix
+        if (!vehicle) {
+            const nums = truckId.replace(/\D/g, '');
+            if (nums) vehicle = fleetData.find(v => v.info.id.replace(/\D/g, '') === nums);
+        }
+
+        return vehicle?.location ?? null;
+    };
+
+    // Get the fleet vehicle for a truckId (same fuzzy logic)
+    const getFleetVehicle = (truckId?: string): FleetVehicle | null => {
+        if (!truckId || fleetData.length === 0) return null;
+        const norm = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
+        const nums = truckId.replace(/\D/g, '');
+        return fleetData.find(v =>
+            v.info.id === truckId ||
+            norm(v.info.id) === norm(truckId) ||
+            (nums && v.info.id.replace(/\D/g, '') === nums)
+        ) ?? null;
     };
 
     // A6: sort handler
@@ -211,6 +240,30 @@ export default function Alerts() {
                 {/* Filter Sidebar */}
                 <div className={styles.filterSidebar}>
                     <div className={styles.filterHeader}><Filter size={18} /><h3>Filter Logs</h3></div>
+
+                    {/* Chart: severity overview */}
+                    <div style={{ marginBottom: 16 }}>
+                        <SeverityDonut
+                            critical={alerts.filter(a => a.level === 'Critical' && !resolvedIds.has(a.id)).length}
+                            high={alerts.filter(a => a.level === 'High' && !resolvedIds.has(a.id)).length}
+                            medium={alerts.filter(a => a.level === 'Medium' && !resolvedIds.has(a.id)).length}
+                            low={alerts.filter(a => a.level === 'Low' && !resolvedIds.has(a.id)).length}
+                            title="Active Alert Mix"
+                            size={160}
+                        />
+                        {resolvedCount > 0 && (
+                            <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#059669', marginBottom: 4 }}>RESOLUTION RATE</div>
+                                <div style={{ background: '#e2e8f0', borderRadius: 999, height: 6, overflow: 'hidden' }}>
+                                    <div style={{
+                                        width: `${Math.round((resolvedCount / (resolvedCount + alerts.filter(a => !resolvedIds.has(a.id)).length)) * 100)}%`,
+                                        height: '100%', background: '#10b981', borderRadius: 999, transition: 'width 0.6s ease'
+                                    }} />
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 4, textAlign: 'right' }}>{resolvedCount} resolved</div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* A4: Resolved toggle tab */}
                     <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
@@ -451,61 +504,215 @@ export default function Alerts() {
                 </div>
             </div>
 
-            {/* Google Maps Modal Overlay */}
+            {/* Google Maps Modal Overlay — View on Map */}
             <AnimatePresence>
-                {mapModalAlert && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        onClick={() => setMapModalAlert(null)}
-                        style={{
-                            position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15,23,42,0.85)',
-                            backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
-                        }}
-                    >
+                {mapModalAlert && (() => {
+                    const loc = getLocation(mapModalAlert.truckId);
+                    const fv = getFleetVehicle(mapModalAlert.truckId);
+                    const meta = SEVERITY_META[mapModalAlert.level] || SEVERITY_META['Low'];
+
+                    // Build markers: the specific truck first, then all other fleet vehicles for context
+                    const allMarkers = [
+                        // If we found the truck, pin it prominently
+                        ...(loc ? [{
+                            lat: loc.lat,
+                            lng: loc.lng,
+                            title: mapModalAlert.truckId || 'Vehicle',
+                            truckId: mapModalAlert.truckId,
+                            riskLevel: mapModalAlert.level as 'Low' | 'Medium' | 'High' | 'Critical',
+                            riskScore: mapModalAlert.riskScore,
+                            status: fv?.status,
+                            route: fv?.info.route,
+                        }] : []),
+                        // Show all other fleet vehicles as light context markers
+                        ...fleetData
+                            .filter(v => v.info.id !== fv?.info.id)
+                            .slice(0, 12)
+                            .map(v => ({
+                                lat: v.location.lat,
+                                lng: v.location.lng,
+                                title: v.info.id,
+                                truckId: v.info.id,
+                                riskLevel: v.risk.level as 'Low' | 'Medium' | 'High' | 'Critical',
+                                riskScore: v.risk.score,
+                                status: v.status,
+                                route: v.info.route,
+                            })),
+                    ];
+
+                    // Centre: truck location if found, else India centroid
+                    const mapCenter = loc ?? { lat: 22.5, lng: 80.5 };
+                    const mapZoom = loc ? 13 : 5;
+
+                    return (
                         <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            onClick={e => e.stopPropagation()}
+                            key="map-modal-backdrop"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setMapModalAlert(null)}
                             style={{
-                                background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '16px', width: '100%', maxWidth: '800px', overflow: 'hidden',
-                                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+                                position: 'fixed', inset: 0, zIndex: 9999,
+                                background: 'rgba(15,23,42,0.88)',
+                                backdropFilter: 'blur(10px)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                padding: '1rem',
                             }}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, display: 'flex', gap: 8, alignItems: 'center', color: '#f1f5f9' }}>
-                                    <MapPin size={18} style={{ color: '#3b82f6' }} /> Live Location: {mapModalAlert.truckId}
-                                </h3>
-                                <button
-                                    onClick={() => setMapModalAlert(null)}
-                                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4, fontWeight: 700 }}
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                            <div style={{ padding: '8px' }}>
-                                {getLocation(mapModalAlert.truckId) ? (
-                                    <GoogleMapComponent
-                                        height="60vh"
-                                        center={getLocation(mapModalAlert.truckId)!}
-                                        zoom={14}
-                                        markers={[{
-                                            lat: getLocation(mapModalAlert.truckId)!.lat,
-                                            lng: getLocation(mapModalAlert.truckId)!.lng,
-                                            title: mapModalAlert.truckId || 'Vehicle',
-                                            riskLevel: mapModalAlert.level,
-                                            riskScore: mapModalAlert.riskScore,
-                                        }]}
-                                    />
-                                ) : (
-                                    <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#64748b' }}>
-                                        <MapPin size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
-                                        <p>GPS telemetry unavailable for this asset.</p>
+                            <motion.div
+                                key="map-modal-panel"
+                                initial={{ scale: 0.94, opacity: 0, y: 24 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.94, opacity: 0, y: 24 }}
+                                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                onClick={e => e.stopPropagation()}
+                                style={{
+                                    background: '#0f172a',
+                                    border: `1px solid ${meta.color}30`,
+                                    borderRadius: 18,
+                                    width: '100%',
+                                    maxWidth: 960,
+                                    maxHeight: '90vh',
+                                    overflow: 'hidden',
+                                    boxShadow: `0 30px 60px -12px rgba(0,0,0,0.7), 0 0 0 1px ${meta.color}20`,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                }}
+                            >
+                                {/* ── Modal Header ─────────────────────────── */}
+                                <div style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '1rem 1.25rem',
+                                    borderBottom: '1px solid rgba(255,255,255,0.07)',
+                                    background: 'rgba(255,255,255,0.02)',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <div style={{
+                                            width: 36, height: 36, borderRadius: 10,
+                                            background: `${meta.color}18`,
+                                            border: `1px solid ${meta.color}35`,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        }}>
+                                            <MapPin size={18} style={{ color: meta.color }} />
+                                        </div>
+                                        <div>
+                                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f1f5f9' }}>
+                                                Live Location — {mapModalAlert.truckId || 'Unknown Vehicle'}
+                                            </h3>
+                                            <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                                                {loc
+                                                    ? `📍 ${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E${fv?.info.route ? ` · ${fv.info.route}` : ''}`
+                                                    : '⚠ Live GPS unavailable — showing fleet overview'}
+                                            </p>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
+                                    <button
+                                        onClick={() => setMapModalAlert(null)}
+                                        aria-label="Close map"
+                                        style={{
+                                            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                                            color: '#94a3b8', cursor: 'pointer', padding: '6px 10px',
+                                            borderRadius: 8, fontWeight: 700, fontSize: '1rem', lineHeight: 1,
+                                            transition: 'all 0.15s',
+                                        }}
+                                    >✕</button>
+                                </div>
+
+                                {/* ── Body: Map + Details ───────────────────── */}
+                                <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+
+                                    {/* Map (takes most space) */}
+                                    <div style={{ flex: 1, minHeight: 420, position: 'relative' }}>
+                                        <GoogleMapComponent
+                                            height="100%"
+                                            center={mapCenter}
+                                            zoom={mapZoom}
+                                            markers={allMarkers}
+                                        />
+                                        {!loc && (
+                                            <div style={{
+                                                position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+                                                background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(245,158,11,0.4)',
+                                                borderRadius: 8, padding: '6px 14px',
+                                                fontSize: '0.76rem', color: '#f59e0b', fontWeight: 700,
+                                                backdropFilter: 'blur(4px)', whiteSpace: 'nowrap',
+                                            }}>
+                                                ⚠ GPS signal lost — showing all fleet context
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Alert Details Panel (right side) */}
+                                    <div style={{
+                                        width: 240, flexShrink: 0,
+                                        borderLeft: '1px solid rgba(255,255,255,0.07)',
+                                        background: 'rgba(255,255,255,0.02)',
+                                        padding: '1rem', overflowY: 'auto',
+                                        display: 'flex', flexDirection: 'column', gap: 12,
+                                    }}>
+                                        {/* Severity badge */}
+                                        <div style={{
+                                            background: `${meta.color}15`,
+                                            border: `1px solid ${meta.color}30`,
+                                            borderRadius: 10, padding: '10px 12px',
+                                        }}>
+                                            <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>SEVERITY</div>
+                                            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: meta.color }}>{meta.icon} {mapModalAlert.level.toUpperCase()}</div>
+                                            {mapModalAlert.riskScore !== undefined && (
+                                                <div style={{ marginTop: 8 }}>
+                                                    <div style={{ background: '#1e293b', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                                                        <div style={{ width: `${mapModalAlert.riskScore}%`, height: '100%', background: meta.color, borderRadius: 4, transition: 'width 0.6s' }} />
+                                                    </div>
+                                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 3, textAlign: 'right' }}>{mapModalAlert.riskScore}/100</div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Alert message */}
+                                        <div>
+                                            <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, letterSpacing: 1, marginBottom: 5 }}>INCIDENT</div>
+                                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.5 }}>{mapModalAlert.message}</p>
+                                        </div>
+
+                                        {/* Fleet vehicle info */}
+                                        {fv && (
+                                            <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 10, padding: '10px 12px' }}>
+                                                <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>VEHICLE INFO</div>
+                                                {[
+                                                    { label: 'Cargo', value: fv.info.cargo },
+                                                    { label: 'Value', value: `₹${(fv.info.value / 100000).toFixed(1)}L` },
+                                                    { label: 'Route', value: fv.info.route },
+                                                    { label: 'Status', value: fv.status },
+                                                ].map(row => (
+                                                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                        <span style={{ fontSize: '0.73rem', color: '#64748b', fontWeight: 600 }}>{row.label}</span>
+                                                        <span style={{ fontSize: '0.73rem', color: '#e2e8f0', fontWeight: 700, maxWidth: 110, textAlign: 'right', wordBreak: 'break-word' }}>{row.value}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Coordinate pill */}
+                                        {loc && (
+                                            <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: '8px 10px' }}>
+                                                <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 700, letterSpacing: 1, marginBottom: 3 }}>GPS FIX</div>
+                                                <div style={{ fontSize: '0.75rem', color: '#34d399', fontFamily: 'monospace' }}>
+                                                    {loc.lat.toFixed(5)}°N<br />{loc.lng.toFixed(5)}°E
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* AI Explanation */}
+                                        <div>
+                                            <div style={{ fontSize: '0.68rem', color: '#8b5cf6', fontWeight: 700, letterSpacing: 1, marginBottom: 5 }}>AI ANALYSIS</div>
+                                            <p style={{ margin: 0, fontSize: '0.73rem', color: '#94a3b8', lineHeight: 1.55 }}>{mapModalAlert.aiExplanation}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
+                    );
+                })()}
             </AnimatePresence>
         </div>
     );

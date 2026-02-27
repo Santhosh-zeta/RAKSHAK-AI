@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Image from 'next/image';
+import { Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 /**
@@ -41,10 +41,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                         borderBottom: '2px solid #60a5fa',
                         animation: 'spin 1.5s linear infinite reverse',
                     }} />
-                    <Image
-                        src="/logo.png" alt="RAKSHAK AI" width={32} height={32}
-                        style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}
-                    />
+                    <Shield size={22} color="#3b82f6" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
                 </div>
                 <span style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.05em' }}>
                     RAKSHAK AI — Authenticating...

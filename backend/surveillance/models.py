@@ -42,8 +42,12 @@ class LogisticsCompany(models.Model):
 
     @property
     def active_trips(self):
-        return self.trucks.prefetch_related('trips').filter(
-            trips__status__in=['Scheduled', 'In-Transit']
+        # Count Trip records directly (avoids duplicate counting via reverse relation)
+        from django.apps import apps
+        Trip = apps.get_model('surveillance', 'Trip')
+        return Trip.objects.filter(
+            truck__company=self,
+            status__in=['Scheduled', 'In-Transit']
         ).count()
 
 

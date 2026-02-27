@@ -314,7 +314,7 @@ export async function triggerSimulation(tripId: string): Promise<boolean> {
 
 export async function getVisionDetection(): Promise<{ active: boolean; log: string[] }> {
     try {
-        const res = await fetch(`${API_BASE_URL}/detect`);
+        const res = await fetch(`${API_BASE_URL}/agents/vision-event/`, { headers: authHeaders() });
         if (!res.ok) throw new Error('vision API failed');
         return await res.json();
     } catch {
@@ -555,15 +555,36 @@ export interface ExplainResult {
     confidence: number;
 }
 
-export async function explainAlert(alertId: string): Promise<ExplainResult | null> {
+export async function explainAlert(tripId: string, alertId: string, riskLevel: string = 'High', riskScore: number = 0.7): Promise<ExplainResult | null> {
     try {
         const res = await fetch(`${API_BASE_URL}/agents/explain/`, {
             method: 'POST',
             headers: authHeaders(),
-            body: JSON.stringify({ alert_id: alertId }),
+            body: JSON.stringify({
+                trip_id: tripId,
+                incident_id: alertId,
+                risk_payload: {
+                    truck_id: 'UNKNOWN',
+                    risk_level: riskLevel.toUpperCase(),
+                    composite_risk_score: riskScore / 100,
+                    confidence: 0.85,
+                    component_scores: {},
+                    triggered_rules: [],
+                    fusion_method: 'weighted_fallback',
+                },
+                decision_payload: {
+                    rule_name: riskScore >= 85 ? 'CRITICAL_THEFT_ALERT' : riskScore >= 65 ? 'HIGH_RISK_ALERT' : 'MEDIUM_RISK_MONITOR',
+                    actions_taken: ['log_incident'],
+                },
+            }),
         });
         if (!res.ok) throw new Error('explain endpoint failed');
-        return await res.json();
+        const data = await res.json();
+        return {
+            explanation: data.explanation_text || data.explanation || '',
+            recommended_action: data.recommended_action || 'Monitor closely.',
+            confidence: data.confidence || 0.85,
+        };
     } catch (e) {
         console.warn('[RAKSHAK] Explain Agent unavailable.', e);
         return null;
@@ -582,7 +603,7 @@ export async function pushGPSLog(tripId: string, lat: number, lng: number, speed
                 trip: tripId,
                 latitude: lat,
                 longitude: lng,
-                speed: speedKmh,
+                speed_kmh: speedKmh,   // backend field is speed_kmh not speed
                 timestamp: new Date().toISOString(),
             }),
         });
@@ -620,6 +641,17 @@ export async function getTrucks(): Promise<TruckRecord[]> {
     }
 }
 
+export async function getTrucksByCompany(companyId: string): Promise<TruckRecord[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/trucks/?company_id=${companyId}`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('trucks fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Trucks by company API unavailable.', e);
+        return [];
+    }
+}
+
 // ─── TRIPS (full DB detail) ──────────────────────────────────────────────────
 
 export interface TripRecord {
@@ -640,6 +672,17 @@ export interface TripRecord {
     baseline_route_risk: number;
 }
 
+export async function getTripsByCompany(companyId: string): Promise<TripRecord[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/trips/?company_id=${companyId}`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('trips fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Trips by company API unavailable.', e);
+        return [];
+    }
+}
+
 export async function getTrips(): Promise<TripRecord[]> {
     try {
         const res = await fetch(`${API_BASE_URL}/trips/`, { headers: authHeaders() });
@@ -648,6 +691,31 @@ export async function getTrips(): Promise<TripRecord[]> {
     } catch (e) {
         console.warn('[RAKSHAK] Trips API unavailable — returning empty list.', e);
         return [];
+    }
+}
+
+// ─── ADMIN DASHBOARD STATS ───────────────────────────────────────────────────
+
+export interface AdminDashboardStats {
+    total_companies: number;
+    total_users: number;
+    total_trucks: number;
+    active_trucks: number;
+    total_trips: number;
+    active_trips: number;
+    critical_alerts: number;
+    high_alerts: number;
+    total_alerts: number;
+}
+
+export async function getAdminDashboard(): Promise<AdminDashboardStats | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/admin/dashboard/`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('admin dashboard fetch failed');
+        return await res.json();
+    } catch (e) {
+        console.warn('[RAKSHAK] Admin dashboard stats unavailable.', e);
+        return null;
     }
 }
 
@@ -737,8 +805,10 @@ export interface CompanyRecord {
     city: string | null;
     country: string;
     active: boolean;
-    active_trucks: number;
-    active_trips: number;
+    active_trucks: number;   // trucks with active=True
+    total_trucks: number;    // all trucks registered
+    active_trips: number;    // trips in Scheduled / In-Transit
+    total_trips: number;     // all trips ever
     joined_date: string;
 }
 

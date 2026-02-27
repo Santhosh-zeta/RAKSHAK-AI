@@ -661,7 +661,7 @@
     width: 100%;
     padding: 0.9rem;
     background: linear-gradient(135deg, #0284c7, #0ea5e9);
-    color: var(--color-text-main);
+    color: white;
     border: none;
     border-radius: 12px;
     font-size: 1rem;
@@ -731,12 +731,20 @@
 }
 
 .radialLoader {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     border: 4px solid rgba(2, 132, 199, 0.15);
     border-top-color: #0284c7;
     border-radius: 50%;
-    animation: spinLoad 0.8s linear infinite;
+    animation: spinLoad 0.9s linear infinite;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loaderIcon {
+    /* counter-spin to appear stationary while ring rotates */
+    animation: spinLoad 0.9s linear infinite reverse;
 }
 
 @keyframes spinLoad {
@@ -777,7 +785,6 @@
 }
 
 /* Report */
-.report {}
 
 .reportHeader {
     display: flex;

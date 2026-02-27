@@ -83,7 +83,7 @@ export default function Home() {
           >
             <motion.div variants={fadeUp} className={styles.badge}>
               <span className={styles.pulseDot}></span>
-              <Image src="/logo.png" alt="Rakshak" width={16} height={16} style={{ objectFit: 'contain' }} />
+              <Shield size={14} style={{ color: 'var(--color-logo-blue)' }} />
               Rakshak Core v2.0 Live
             </motion.div>
 

@@ -3,15 +3,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './page.module.css';
 import { getFleetData, getAlerts, triggerSimulation, FleetVehicle, Alert } from '@/services/apiClient';
+import { SeverityDonut, FleetStatusDonut, RiskBars, RiskTimeline } from '@/components/charts/ChartComponents';
 import { useToast } from '@/components/Toast';
 import AuthGuard from '@/components/AuthGuard';
 import {
     MapPin, Activity, Truck, Banknote, ShieldAlert, BarChart3,
-    Crosshair, Terminal, ArrowUpRight, Signal, Zap, CheckCircle2, ExternalLink
+    Crosshair, Terminal, ArrowUpRight, Signal, Zap, CheckCircle2, ExternalLink, Shield
 } from 'lucide-react';
 
 // Dynamically import GoogleMapComponent because it needs the window object
@@ -64,6 +64,7 @@ export default function Dashboard() {
     const [activeFilter, setActiveFilter] = useState<'All' | 'High Risk' | 'In Transit'>('All');
     const [demoStatus, setDemoStatus] = useState<'idle' | 'running' | 'done'>('idle');
     const [terminalTick, setTerminalTick] = useState(0);
+    const [riskHistory, setRiskHistory] = useState<{ time: string; risk: number }[]>([]);
     const { showToast, ToastElement } = useToast();
 
     const fetchData = useCallback(async () => {
@@ -71,6 +72,12 @@ export default function Dashboard() {
             const [fleetData, alertsData] = await Promise.all([getFleetData(), getAlerts()]);
             setFleet(fleetData);
             setAlerts(alertsData);
+            // Record avg risk snapshot for timeline
+            if (fleetData.length > 0) {
+                const avg = Math.round(fleetData.reduce((a, v) => a + v.risk.score, 0) / fleetData.length);
+                const timeLabel = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+                setRiskHistory(prev => [...prev.slice(-19), { time: timeLabel, risk: avg }]);
+            }
         } catch (error) {
             console.error('Error fetching data', error);
         } finally {
@@ -129,7 +136,7 @@ export default function Dashboard() {
                 <div className={styles.loaderCore}>
                     <div className={styles.loaderRing}></div>
                     <div className={styles.loaderRing2}></div>
-                    <Image src="/logo.png" alt="Rakshak Logo" width={40} height={40} className={styles.loaderIcon} />
+                    <Shield size={28} style={{ color: '#0284c7' }} className={styles.loaderIcon} />
                 </div>
                 <h2>Rakshak Command Center Starting...</h2>
                 <div className={styles.loadingBar}><div className={styles.loadingFill}></div></div>
@@ -360,6 +367,63 @@ export default function Dashboard() {
                         </div>
                     </motion.section>
                 </motion.div>
+
+                {/* ── ANALYTICS ROW ─────────────────────────────────────────────── */}
+                <motion.section variants={fadeUp} style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    gap: '1rem',
+                    marginBottom: '1rem',
+                }}>
+                    {/* 1. Alert Severity Donut */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem' }}>
+                        <SeverityDonut
+                            critical={alerts.filter(a => a.level === 'Critical').length}
+                            high={alerts.filter(a => a.level === 'High').length}
+                            medium={alerts.filter(a => a.level === 'Medium').length}
+                            low={alerts.filter(a => a.level === 'Low').length}
+                            title="Alert Severity"
+                            size={170}
+                        />
+                    </div>
+
+                    {/* 2. Fleet Status Donut */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem' }}>
+                        <FleetStatusDonut
+                            statusCounts={fleet.reduce((acc, v) => {
+                                acc[v.status] = (acc[v.status] || 0) + 1;
+                                return acc;
+                            }, {} as Record<string, number>)}
+                            title="Fleet Status Mix"
+                            size={170}
+                        />
+                    </div>
+
+                    {/* 3. Per-truck risk bar */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem' }}>
+                        <RiskBars
+                            data={fleet.slice(0, 8).map(v => ({ label: v.info.id, score: v.risk.score }))}
+                            title="Unit Risk Scores"
+                            height={170}
+                        />
+                    </div>
+
+                    {/* 4. Rolling avg risk timeline */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem' }}>
+                        <RiskTimeline
+                            data={riskHistory.length >= 2 ? riskHistory : [
+                                ...Array.from({ length: 8 }, (_, i) => ({
+                                    time: `T-${8 - i}`,
+                                    risk: Math.max(5, avgRisk - Math.round(Math.random() * 20 - 10)),
+                                })),
+                                { time: 'Now', risk: avgRisk },
+                            ]}
+                            title="Avg Risk Timeline"
+                            height={170}
+                            color={avgRiskColor}
+                        />
+                    </div>
+                </motion.section>
 
                 {/* Fleet Telemetry Table — D1, D6, D7 */}
                 <motion.section variants={fadeUp} className={styles.dataGridSection}>

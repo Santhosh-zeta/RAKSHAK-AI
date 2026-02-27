@@ -1,13 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import styles from './Navbar.module.css';
 import { getAlerts } from '@/services/apiClient';
 import { useAuth } from '@/context/AuthContext';
-import { Menu, X, Bell, LogOut, User, ChevronDown } from 'lucide-react';
+import { Menu, X, Bell, LogOut, User, ChevronDown, Shield } from 'lucide-react';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -68,7 +67,7 @@ export default function Navbar() {
         <nav className={styles.navbar}>
             {/* Logo */}
             <Link href="/" className={styles.logoContainer} aria-label="RAKSHAK AI Home">
-                <Image src="/logo.png" alt="Rakshak AI Logo" width={36} height={36} className={styles.navLogo} />
+                <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #0284c7, #0ea5e9)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Shield size={18} color="white" /></div>
                 <span className={styles.logoText}>RAKSHAK AI</span>
             </Link>
 
