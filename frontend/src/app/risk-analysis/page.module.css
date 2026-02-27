@@ -125,7 +125,7 @@
     padding: 1rem;
     border-radius: 8px;
     background: linear-gradient(135deg, var(--color-accent) 0%, #0f4675 100%);
-    color: var(--color-text-main);
+    color: #ffffff;
     border: none;
     font-size: 1.1rem;
     font-weight: 700;
@@ -136,6 +136,7 @@
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
 }
+
 
 .predictBtn:hover:not(:disabled) {
     transform: translateY(-2px);

@@ -1,0 +1,583 @@
+/* ── Page shell ──────────────────────────────────────────────────────────── */
+.page {
+    min-height: 100vh;
+    background: #f8fafc;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.glow1 {
+    position: fixed;
+    top: -15%;
+    right: -10%;
+    width: 60vw;
+    height: 60vw;
+    background: radial-gradient(circle, rgba(63, 126, 68, 0.07) 0%, transparent 65%);
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.glow2 {
+    position: fixed;
+    bottom: -20%;
+    left: -10%;
+    width: 55vw;
+    height: 55vw;
+    background: radial-gradient(circle, rgba(243, 110, 38, 0.05) 0%, transparent 65%);
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.glow3 {
+    position: fixed;
+    top: 40%;
+    left: 30%;
+    width: 40vw;
+    height: 40vw;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.04) 0%, transparent 65%);
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+.hero {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 5.5rem 2rem 4rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.75rem;
+}
+
+.heroBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(63, 126, 68, 0.1);
+    color: #3F7E44;
+    border: 1px solid rgba(63, 126, 68, 0.28);
+    padding: 0.45rem 1rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.heroTitle {
+    font-size: clamp(2.6rem, 5vw, 4.2rem);
+    font-weight: 900;
+    line-height: 1.1;
+    color: #0f172a;
+    letter-spacing: -2px;
+    margin: 0;
+}
+
+.green {
+    background: linear-gradient(90deg, #3F7E44, #10b981);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.blue {
+    background: linear-gradient(90deg, #0284c7, #0ea5e9);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.heroSub {
+    font-size: 1.1rem;
+    color: #475569;
+    line-height: 1.75;
+    max-width: 700px;
+    font-weight: 500;
+    margin: 0;
+}
+
+.heroSDGs {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.25rem;
+}
+
+.heroStats {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
+.heroStatItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 1.5rem 2rem;
+    position: relative;
+    flex: 1;
+}
+
+.heroStatItem:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 1px;
+    background: rgba(203, 213, 225, 0.6);
+}
+
+.heroStatItem strong {
+    font-size: 1.9rem;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+    line-height: 1;
+}
+
+.heroStatItem span {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.heroStatDiv {
+    display: none;
+}
+
+/* ── Section ──────────────────────────────────────────────────────────────── */
+.section {
+    position: relative;
+    z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sectionHeader {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.sectionHeader h2 {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 0.65rem;
+    letter-spacing: -1px;
+}
+
+.sectionHeader p {
+    font-size: 1.05rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* ── Stat cards ───────────────────────────────────────────────────────────── */
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+}
+
+.statCard {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 1.65rem 1.75rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.statCard:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 35px rgba(0, 0, 0, 0.08);
+}
+
+.statTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.35rem;
+}
+
+.statIcon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.statSDG {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+}
+
+.statValue {
+    font-size: 1.9rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    line-height: 1;
+}
+
+.statLabel {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.statSub {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+/* ── Chart cards ──────────────────────────────────────────────────────────── */
+.chartCard {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 2rem 2rem 1.5rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.25s ease;
+}
+
+.chartCard:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+.chartCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    gap: 1.5rem;
+}
+
+.chartCardHeader>div h3 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0.35rem 0 0.3rem;
+    letter-spacing: -0.25px;
+}
+
+.chartCardHeader>div p {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 500;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.chartBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.chartKPIs {
+    display: flex;
+    gap: 1.5rem;
+    flex-shrink: 0;
+}
+
+.chartKPI {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.75rem 1.25rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.chartKPI strong {
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    line-height: 1;
+}
+
+.chartKPI span {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* ── Charts row (side by side) ────────────────────────────────────────────── */
+.chartsRow {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 1.5rem;
+}
+
+.chartCardStretch {
+    height: 100%;
+}
+
+/* ── SDG score pills ──────────────────────────────────────────────────────── */
+.sdgScorePills {
+    display: flex;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.sdgScorePill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    border-radius: 14px;
+    min-width: 64px;
+    text-align: center;
+}
+
+/* ── Overview grid ────────────────────────────────────────────────────────── */
+.overviewGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.75rem;
+}
+
+.overviewCard {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 2rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    transition: all 0.25s ease;
+}
+
+.overviewCard:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.09);
+}
+
+.overviewTop {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.overviewIcon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.overviewSDGNum {
+    font-size: 1.05rem;
+    font-weight: 900;
+    letter-spacing: -0.25px;
+}
+
+.overviewSDGTitle {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
+.overviewPoints {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.overviewPoints li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    line-height: 1.4;
+}
+
+/* ── CTA ─────────────────────────────────────────────────────────────────── */
+.cta {
+    position: relative;
+    z-index: 1;
+    background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 60%, #fafafa 100%);
+    border-top: 1px solid rgba(203, 213, 225, 0.7);
+    padding: 7rem 2rem;
+}
+
+.ctaInner {
+    max-width: 680px;
+    margin: 0 auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.cta h2 {
+    font-size: 2.75rem;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: -1.2px;
+    margin: 0;
+}
+
+.cta p {
+    font-size: 1.05rem;
+    color: #475569;
+    line-height: 1.75;
+    font-weight: 500;
+    margin: 0;
+}
+
+.ctaBtns {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.ctaPrimary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #3F7E44;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(63, 126, 68, 0.35);
+}
+
+.ctaPrimary:hover {
+    background: #2d6030;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(63, 126, 68, 0.42);
+}
+
+.ctaSecondary {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    transition: all 0.2s ease;
+}
+
+.ctaSecondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .chartsRow {
+        grid-template-columns: 1fr;
+    }
+
+    .overviewGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .statsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .heroStats {
+        flex-direction: column;
+        border-radius: 14px;
+    }
+
+    .heroStatItem:not(:last-child)::after {
+        top: auto;
+        bottom: 0;
+        left: 15%;
+        right: 15%;
+        width: auto;
+        height: 1px;
+    }
+
+    .chartCardHeader {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .chartKPIs {
+        width: 100%;
+    }
+
+    .sdgScorePills {
+        flex-wrap: wrap;
+    }
+
+    .hero {
+        padding: 3.5rem 1.5rem 2.5rem;
+    }
+
+    .cta h2 {
+        font-size: 2rem;
+    }
+}

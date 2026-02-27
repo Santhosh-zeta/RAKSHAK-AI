@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
+import SDGFloatingBtn from "@/components/SDGFloatingBtn";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800", "900"] });
@@ -27,8 +28,10 @@ export default function RootLayout({
           <main className="main-content">
             {children}
           </main>
+          <SDGFloatingBtn />
         </AuthProvider>
       </body>
     </html>
   );
 }
+

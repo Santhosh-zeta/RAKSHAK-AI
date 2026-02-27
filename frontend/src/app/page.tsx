@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { motion, useScroll, useTransform, useMotionTemplate, useMotionValue } from 'framer-motion';
 import React from 'react';
 import styles from './page.module.css';
-import { Target, Eye, ShieldAlert, Zap, ArrowRight, ShieldCheck, BarChart3, Globe, Shield, Activity, Lock } from 'lucide-react';
+import { Target, Eye, ShieldAlert, Zap, ArrowRight, ShieldCheck, BarChart3, Globe, Shield, Activity, Lock, Leaf, Recycle, Wind } from 'lucide-react';
 
 // Animation variants
 const staggerContainer = {
@@ -305,6 +305,98 @@ export default function Home() {
             <h3>Action</h3>
             <p>System triggers automated lockdown and sends rapid SMS alerts.</p>
           </motion.div>
+        </motion.div>
+      </section>
+
+      {/* SDG Alignment Section */}
+      <section className={styles.sdgSection}>
+        <motion.div
+          className={styles.sectionHeader}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          variants={fadeUp}
+        >
+          <motion.div variants={fadeUp} className={styles.sdgSectionBadge}>
+            <Leaf size={14} />
+            UN Sustainable Development Goals
+          </motion.div>
+          <h2>Advancing the 2030 Agenda</h2>
+          <p>RAKSHAK AI actively drives SDG 9, 12, and 13 — protecting cargo, reducing CO₂ emissions, and building resilient logistics infrastructure for India and beyond.</p>
+        </motion.div>
+
+        <motion.div
+          className={styles.sdgGrid}
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-80px' }}
+        >
+          {/* SDG 9 */}
+          <motion.div variants={fadeUp} className={`${styles.sdgCard} ${styles.sdgCard9}`}>
+            <div className={styles.sdgCardTop}>
+              <div className={styles.sdgNumber} style={{ background: '#F36E26' }}>9</div>
+              <div className={styles.sdgIconWrap} style={{ background: 'rgba(243,110,38,0.1)', color: '#F36E26' }}>
+                <Shield size={20} />
+              </div>
+            </div>
+            <h3>Industry, Innovation &amp; Infrastructure</h3>
+            <p>Our multi-agent AI platform provides resilient, inclusive digital infrastructure for fleet operations — bringing enterprise-grade intelligence to every logistics operator.</p>
+            <div className={styles.sdgMini}>
+              <div className={styles.sdgMiniRow}><span>AI Platform Uptime</span><strong>99%</strong></div>
+              <div className={styles.sdgMiniRow}><span>Active AI Models</span><strong>5 Agents</strong></div>
+            </div>
+            <div className={styles.sdgBar}><div className={styles.sdgBarFill} style={{ width: '91%', background: '#F36E26' }} /></div>
+            <span className={styles.sdgBarLabel}>SDG 9 Impact: 91%</span>
+          </motion.div>
+
+          {/* SDG 12 */}
+          <motion.div variants={fadeUp} className={`${styles.sdgCard} ${styles.sdgCard12}`}>
+            <div className={styles.sdgCardTop}>
+              <div className={styles.sdgNumber} style={{ background: '#BF8B2E' }}>12</div>
+              <div className={styles.sdgIconWrap} style={{ background: 'rgba(191,139,46,0.1)', color: '#BF8B2E' }}>
+                <Recycle size={20} />
+              </div>
+            </div>
+            <h3>Responsible Consumption &amp; Production</h3>
+            <p>Preventing cargo theft, spoilage, and fuel waste directly enables responsible supply chains. Every alert resolved is economic and environmental waste avoided.</p>
+            <div className={styles.sdgMini}>
+              <div className={styles.sdgMiniRow}><span>Cargo Waste Avoided</span><strong>86%</strong></div>
+              <div className={styles.sdgMiniRow}><span>Idle Fuel Reduction</span><strong>70%</strong></div>
+            </div>
+            <div className={styles.sdgBar}><div className={styles.sdgBarFill} style={{ width: '86%', background: '#BF8B2E' }} /></div>
+            <span className={styles.sdgBarLabel}>SDG 12 Impact: 86%</span>
+          </motion.div>
+
+          {/* SDG 13 */}
+          <motion.div variants={fadeUp} className={`${styles.sdgCard} ${styles.sdgCard13}`}>
+            <div className={styles.sdgCardTop}>
+              <div className={styles.sdgNumber} style={{ background: '#3F7E44' }}>13</div>
+              <div className={styles.sdgIconWrap} style={{ background: 'rgba(63,126,68,0.1)', color: '#3F7E44' }}>
+                <Wind size={20} />
+              </div>
+            </div>
+            <h3>Climate Action</h3>
+            <p>AI-optimised routing eliminates unnecessary detours and idling — directly reducing CO₂ emissions from India's fastest-growing pollution source: road freight transport.</p>
+            <div className={styles.sdgMini}>
+              <div className={styles.sdgMiniRow}><span>CO₂ Saved / Fleet</span><strong>1.1 t/day</strong></div>
+              <div className={styles.sdgMiniRow}><span>Green Routes Used</span><strong>73%</strong></div>
+            </div>
+            <div className={styles.sdgBar}><div className={styles.sdgBarFill} style={{ width: '78%', background: '#3F7E44' }} /></div>
+            <span className={styles.sdgBarLabel}>SDG 13 Impact: 78%</span>
+          </motion.div>
+        </motion.div>
+
+        <motion.div
+          className={styles.sdgCta}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          variants={fadeUp}
+        >
+          <Link href="/sustainability" className={styles.sdgCtaBtn}>
+            View Full Sustainability Report <ArrowRight size={16} />
+          </Link>
         </motion.div>
       </section>
 

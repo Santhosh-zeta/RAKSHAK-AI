@@ -200,17 +200,8 @@ export default function Dashboard() {
                             </button>
                         ))}
                     </div>
-                    <button
-                        onClick={handleDemo}
-                        disabled={demoStatus === 'running'}
-                        className={styles.demoBtn} // D2: moved to CSS class
-                        aria-label="Trigger demo theft scenario"  // G10
-                        data-status={demoStatus}
-                    >
-                        {demoStatus === 'running' ? <Activity size={16} className={styles.spinIcon} /> : demoStatus === 'done' ? <CheckCircle2 size={16} /> : <Zap size={16} />}
-                        {demoStatus === 'running' ? 'Triggering...' : demoStatus === 'done' ? 'Scenario Active!' : '🚨 Trigger Demo'}
-                    </button>
                 </motion.div>
+
 
                 {/* Stats Grid */}
                 <motion.section variants={fadeUp} className={styles.statsGrid}>

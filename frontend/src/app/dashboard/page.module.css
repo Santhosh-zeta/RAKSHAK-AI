@@ -772,7 +772,7 @@
     align-items: center;
     gap: 0.5rem;
     background: #ef4444;
-    color: var(--color-text-main);
+    color: #ffffff;
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 10px;
@@ -784,6 +784,7 @@
     letter-spacing: 0.5px;
     white-space: nowrap;
 }
+
 
 .demoBtn:disabled {
     opacity: 0.7;
