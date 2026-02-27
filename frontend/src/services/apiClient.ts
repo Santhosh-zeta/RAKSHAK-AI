@@ -31,9 +31,11 @@ export interface Alert {
     message: string;
     level: 'Low' | 'Medium' | 'High' | 'Critical';
     truckId?: string;
+    tripId?: string;
     aiExplanation?: string;
     riskScore?: number;
     type?: string;
+    location?: { lat: number; lng: number }; // resolved from GPS logs by backend
 }
 
 // Extended alert with guaranteed AI fields (used in Alerts page)
@@ -41,6 +43,7 @@ export interface EnhancedAlert extends Alert {
     aiExplanation: string;
     riskScore: number;
     type: string;
+    location?: { lat: number; lng: number };
 }
 
 export interface FleetVehicle {
@@ -271,21 +274,30 @@ export async function getAlerts(): Promise<Alert[]> {
             const date = new Date(d.timestamp);
             // Resolve truck identifier — backend now sends truck_license_plate directly
             const truckId =
-                d.truck_license_plate ||          // new: direct field from AlertSerializer
-                d.trip?.truck?.license_plate ||   // fallback: deep nested (if serialiser changes)
+                d.truck_license_plate ||          // direct field from AlertSerializer
+                d.trip?.truck?.license_plate ||   // fallback: deep nested
                 d.truck?.license_plate ||
                 d.truck_id ||
                 d.trip?.truck_id ||
-                undefined;   // undefined → badge simply won't render
+                undefined;
+
+            // Location: backend now returns gps_lat / gps_lng from the latest GPSLog
+            const location: { lat: number; lng: number } | undefined =
+                (d.gps_lat != null && d.gps_lng != null)
+                    ? { lat: parseFloat(d.gps_lat), lng: parseFloat(d.gps_lng) }
+                    : undefined;
+
             return {
                 id: d.alert_id,
                 truckId,
+                tripId: d.trip_id || undefined,
                 time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 message: d.description,
                 level: d.severity,
                 aiExplanation: d.ai_explanation || '',
                 riskScore: d.risk_score ?? undefined,
                 type: d.alert_type || d.type || 'System',
+                location,
             };
         }).sort((a: any, b: any) => (a.time > b.time ? -1 : 1));
 

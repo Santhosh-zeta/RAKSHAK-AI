@@ -76,20 +76,26 @@ export default function Alerts() {
         return () => clearInterval(interval);
     }, [fetchAlerts]);
 
-    // A2: Get real vehicle location — fuzzy match handles format differences (TR-007 vs TRK-007)
-    const getLocation = (truckId?: string): { lat: number; lng: number } | null => {
+    // A2: Get real vehicle location — prefer alert.location (direct GPS from backend),
+    // fall back to fuzzy fleet data match for seed/mock mode
+    const getLocation = (alert: EnhancedAlert): { lat: number; lng: number } | null => {
+        // 1. Best source: location embedded directly in the alert (from gps_lat/gps_lng)
+        if (alert.location) return alert.location;
+
+        // 2. Fallback: cross-reference fleet data by truck ID (seed/mock mode)
+        const truckId = alert.truckId;
         if (!truckId || fleetData.length === 0) return null;
 
-        // 1. Exact match
+        // Exact match
         let vehicle = fleetData.find(v => v.info.id === truckId);
 
-        // 2. Normalised match: strip non-alphanumeric and compare
+        // Normalised match: strip non-alphanumeric and compare
         if (!vehicle) {
             const norm = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
             vehicle = fleetData.find(v => norm(v.info.id) === norm(truckId));
         }
 
-        // 3. Partial match: one contains the other's numeric suffix
+        // Partial match: one contains the other's numeric suffix
         if (!vehicle) {
             const nums = truckId.replace(/\D/g, '');
             if (nums) vehicle = fleetData.find(v => v.info.id.replace(/\D/g, '') === nums);
@@ -386,7 +392,7 @@ export default function Alerts() {
                                 {filteredAlerts.map(alert => {
                                     const meta = SEVERITY_META[alert.level] || SEVERITY_META['Low'];
                                     const isExpanded = expandedAlertId === alert.id;
-                                    const location = getLocation(alert.truckId); // A2
+                                    const location = getLocation(alert); // A2: prefer alert.location
                                     return (
                                         <motion.div
                                             layout
@@ -507,7 +513,7 @@ export default function Alerts() {
             {/* Google Maps Modal Overlay — View on Map */}
             <AnimatePresence>
                 {mapModalAlert && (() => {
-                    const loc = getLocation(mapModalAlert.truckId);
+                    const loc = getLocation(mapModalAlert); // prefer embedded GPS
                     const fv = getFleetVehicle(mapModalAlert.truckId);
                     const meta = SEVERITY_META[mapModalAlert.level] || SEVERITY_META['Low'];
 

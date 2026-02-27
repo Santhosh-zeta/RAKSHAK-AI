@@ -116,6 +116,10 @@ class AlertSerializer(serializers.ModelSerializer):
     alert_type = serializers.CharField(source='type', read_only=True)
     # Friendly alias for the frontend that uses d.severity
     severity = serializers.CharField(read_only=True)
+    # Expose trip_id and latest GPS coordinates so the frontend can show location
+    trip_id  = serializers.SerializerMethodField(read_only=True)
+    gps_lat  = serializers.SerializerMethodField(read_only=True)
+    gps_lng  = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model  = Alert
@@ -128,7 +132,29 @@ class AlertSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def get_trip_id(self, obj):
+        try:
+            return str(obj.trip.trip_id)
+        except Exception:
+            return None
+
+    def _latest_gps(self, obj):
+        """Return the most recent GPSLog for this alert's trip, or None."""
+        try:
+            return obj.trip.gps_logs.order_by('-timestamp').first()
+        except Exception:
+            return None
+
+    def get_gps_lat(self, obj):
+        log = self._latest_gps(obj)
+        return float(log.latitude) if log else None
+
+    def get_gps_lng(self, obj):
+        log = self._latest_gps(obj)
+        return float(log.longitude) if log else None
+
     def validate_risk_score(self, value):
         if not (0.0 <= value <= 100.0):
             raise serializers.ValidationError("Risk score must be between 0 and 100.")
         return value
+
